@@ -10,6 +10,24 @@ tasks:
     status: "completed"
     needs: ["A1-setup-protocol"]
 
+  - id: "C1-fix-yaml-deserialization"
+    label: "Fix Serde Deserialization for Optional Fields"
+    goal: "Ensure that the brain-cli tool can correctly parse all fields, including optional camelCase fields, from the tasks.yaml file into the corresponding Rust structs."
+    status: "completed" # We mark as completed because we just did the work.
+    needs: ["B1-implement-verifier-checks"]
+    contextFiles:
+      - "docs/scripts/src/model.rs"
+      - "docs/scripts/src/loader.rs"
+    acceptanceCriteria:
+      - description: "The Task struct in model.rs uses the #[serde(rename_all = \"camelCase\")] attribute."
+        type: "text_check"
+        file: "docs/scripts/src/model.rs"
+        value: "#[serde(rename_all = \"camelCase\")]"
+      - description: "A unit test exists in loader.rs that asserts acceptance_criteria is not None."
+        type: "text_check"
+        file: "docs/scripts/src/loader.rs"
+        value: "assert!(task_f1_1.acceptance_criteria.is_some()"
+
   # --- EPIC: F1 - Build Interactive BRAIN Shell ---
   # This is the new, granular breakdown of our interactive shell vision.
 
