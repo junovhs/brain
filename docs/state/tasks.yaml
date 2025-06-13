@@ -28,6 +28,19 @@ tasks:
         file: "docs/scripts/src/loader.rs"
         value: "assert!(task_f1_1.acceptance_criteria.is_some()"
 
+  - id: "D1-configure-gitignore"
+    label: "Configure gitignore to exclude build artifacts"
+    goal: "Prevent temporary build artifacts and secrets from being committed to the repository."
+    status: "completed"
+    needs: ["C1-fix-yaml-deserialization"]
+    contextFiles:
+      - ".gitignore"
+    acceptanceCriteria:
+      - description: "The .gitignore file contains an entry for the 'target/' directory."
+        type: "text_check"
+        file: ".gitignore"
+        value: "target/"
+
   # --- EPIC: F1 - Build Interactive BRAIN Shell ---
   # This is the new, granular breakdown of our interactive shell vision.
 
