@@ -206,7 +206,7 @@ tasks:
   - id: "I2-install-cli-globally"
     label: "Install CLI for global access"
     goal: "Install the brain-cli executable into a system path so it can be invoked from anywhere by simply typing 'brain-cli', instead of needing the full path."
-    status: "pending"
+    status: "completed" 
     needs: ["F1.4-implement-gui-gauge"]
     contextFiles:
       - "docs/scripts/Cargo.toml"
@@ -219,10 +219,11 @@ tasks:
         type: "manual_check"
         file: "n/a"
         value: "Navigate to the root directory and run 'brain-cli next' to confirm it works."
+
   - id: "I3-fix-relative-paths"
     label: "Fix relative path resolution for global execution"
     goal: "Modify the brain-cli so it correctly finds the project root (and thus tasks.yaml) from any directory where the command is run."
-    status: "pending"
+    status: "completed" 
     needs: ["I2-install-cli-globally"]
     contextFiles:
       - "docs/scripts/src/main.rs"

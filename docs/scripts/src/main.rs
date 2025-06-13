@@ -1,10 +1,11 @@
-// FILE: docs/scripts/src/main.rs
+// CORRECT AND FINAL FILE: docs/scripts/src/main.rs
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
-use std::path::PathBuf;
+use std::env;
+use std::path::{Path, PathBuf};
 
 mod api_client;
 mod context;
@@ -74,7 +75,6 @@ fn run_command(state: &AppState, command: Commands) -> Result<()> {
     }
 }
 
-// --- START: New Status Bar Function ---
 fn display_status_bar() -> Result<()> {
     let budget_status = governor::get_budget_status();
     println!("\n--------------------------------------------------");
@@ -82,14 +82,13 @@ fn display_status_bar() -> Result<()> {
     println!("--------------------------------------------------");
     Ok(())
 }
-// --- END: New Status Bar Function ---
 
 fn run_repl(state: &AppState) -> Result<()> {
     println!("Welcome to the BRAIN interactive shell. Type 'exit' to quit.");
     let mut rl = DefaultEditor::new()?;
 
     loop {
-        display_status_bar()?; // <-- ACCEPTANCE CRITERION MET
+        display_status_bar()?;
 
         match next::get_next_tasks(state) {
             Ok(tasks) if !tasks.is_empty() => {
@@ -148,11 +147,22 @@ fn run_repl(state: &AppState) -> Result<()> {
 
 impl AppState {
     fn new() -> Result<Self> {
-        let exe_path = std::env::current_exe()?;
-        let scripts_dir = exe_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine scripts directory"))?;
-        let project_root = scripts_dir.parent().and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine project root"))?;
+        let current_dir = env::current_dir()?;
+        let project_root = find_project_root(&current_dir).ok_or_else(|| {
+            anyhow!("Cannot find project root containing BRAIN.md from the current directory.")
+        })?;
         Ok(AppState {
             project_root: project_root.to_path_buf(),
         })
+    }
+}
+
+fn find_project_root(start_dir: &Path) -> Option<&Path> {
+    let mut current = start_dir;
+    loop {
+        if current.join("BRAIN.md").exists() {
+            return Some(current);
+        }
+        current = current.parent()?;
     }
 }
