@@ -1,38 +1,89 @@
 version: 2
 tasks:
   - id: "A1-setup-protocol"
-    label: "Setup & Bootstrap BRAIN Protocol"
+    label: "Bootstrap BRAIN Protocol"
     status: "completed"
     needs: []
-    # Contents trimmed for brevity
 
   - id: "B1-implement-verifier-checks"
     label: "Implement Core Verifier Checks"
-    goal: "Upgrade the verifier to perform its two most basic checks: 'file_exists' and 'text_check'. This is the first step in making the Gatekeeper trustworthy."
     status: "completed"
-    needs:
-      - "A1-setup-protocol"
+    needs: ["A1-setup-protocol"]
+
+  # --- EPIC: F1 - Build Interactive BRAIN Shell ---
+  # This is the new, granular breakdown of our interactive shell vision.
+
+  - id: "F1.1-implement-repl-loop"
+    label: "Build Core TTY Read-Eval-Print Loop"
+    goal: "Modify brain-cli main function to enter a persistent interactive loop when run with no subcommands, instead of just printing help."
+    status: "pending"
+    needs: ["B1-implement-verifier-checks"]
     contextFiles:
-      - "docs/scripts/src/verifier.rs"
-      - "docs/scripts/src/model.rs"
+      - "docs/scripts/src/main.rs"
     acceptanceCriteria:
-      - description: "The verifier's main loop must contain a 'match' statement on the acceptance criterion's check_type."
+      - description: "main.rs uses a loop to repeatedly read user input from stdin."
         type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
+        file: "docs/scripts/src/main.rs"
         assertion: "contains_string"
-        value: "match ac.check_type.as_str()"
-      - description: "The 'file_exists' match arm correctly checks if a file exists on disk."
+        value: "loop {"
+      - description: "A dependency on a line-reading crate (e.g., 'rustyline') is added to Cargo.toml."
         type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
+        file: "docs/scripts/Cargo.toml"
         assertion: "contains_string"
-        value: "Ok(path.exists())"
-      - description: "The 'text_check' match arm reads a file's content to a string."
+        value: "rustyline"
+
+  - id: "F1.2-implement-state-aware-menu"
+    label: "Implement State-Aware Command Menu"
+    goal: "The REPL will read the tasks.yaml file to determine the current project state and display a dynamic menu of valid commands."
+    status: "pending"
+    needs: ["F1.1-implement-repl-loop"]
+    contextFiles:
+      - "docs/scripts/src/main.rs"
+      - "docs/state/tasks.yaml"
+    acceptanceCriteria:
+      - description: "The main loop determines the next available task by calling a 'get_next_task' function."
+        type: "ast_check" # We'll need to implement this check type
+        file: "docs/scripts/src/main.rs"
+        assertion: "function_call"
+        value: "get_next_task"
+      - description: "The shell displays different menus for 'No Active Task' vs 'Task In Progress' states."
         type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
+        file: "docs/scripts/src/main.rs"
         assertion: "contains_string"
-        value: "fs::read_to_string"
-      - description: "The 'text_check' match arm correctly checks if the file content contains the required value."
+        value: "[N]ew Task"
+
+  - id: "F1.3-integrate-api-and-governor"
+    label: "Integrate API Client & Resource Governor"
+    goal: "Add the necessary structures and configuration to call external LLM APIs safely, governed by the multi-tiered budget defined in BRAIN.md."
+    status: "pending"
+    needs: ["F1.1-implement-repl-loop"]
+    contextFiles:
+      - "docs/scripts/src/main.rs"
+      - "BRAIN.md"
+    acceptanceCriteria:
+      - description: "A new module 'api_client.rs' exists for handling HTTP requests."
+        type: "file_exists"
+        file: "docs/scripts/src/api_client.rs"
+      - description: "A new module 'governor.rs' exists to parse BRAIN.md and track budgets."
+        type: "file_exists"
+        file: "docs/scripts/src/governor.rs"
+      - description: "The CLI has a 'configure' command to set the API key securely."
         type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
+        file: "docs/scripts/src/main.rs"
         assertion: "contains_string"
-        value: "content.contains"
+        value: "Commands::Configure"
+
+  - id: "F1.4-implement-gui-gauge"
+    label: "Implement Multi-Toned Budget Gauge"
+    goal: "The interactive shell's persistent display will render the multi-toned budget gauge, reflecting session, daily, and monthly spend."
+    status: "pending"
+    needs: ["F1.3-integrate-api-and-governor"]
+    contextFiles:
+      - "docs/scripts/src/main.rs"
+      - "docs/scripts/src/governor.rs"
+    acceptanceCriteria:
+      - description: "The main loop contains a function 'display_status_bar' that is called on every iteration."
+        type: "ast_check"
+        file: "docs/scripts/src/main.rs"
+        assertion: "function_call"
+        value: "display_status_bar"
