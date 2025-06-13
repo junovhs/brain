@@ -1,4 +1,4 @@
-// Corrected FILE: docs/scripts/src/main.rs
+// CORRECTED FILE: docs/scripts/src/main.rs
 
 use anyhow::Result;
 use clap::Parser;
@@ -10,7 +10,7 @@ mod context;
 mod loader;
 mod model;
 mod verifier;
-// mod next; // We will add this back later
+mod next;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
@@ -59,10 +59,7 @@ fn run_command(state: &AppState, command: Commands) -> Result<()> {
     match command {
         Commands::Context { task_id } => context::run(state, &task_id),
         Commands::Verify { task_id } => verifier::run(state, &task_id),
-        Commands::Next => {
-            println!("// TODO: Implement 'next' command logic.");
-            Ok(())
-        }
+        Commands::Next => next::run(state),
         Commands::Prompt { role } => {
             println!("// TODO: Implement 'prompt' command logic for role: {}", role);
             Ok(())
@@ -75,6 +72,25 @@ fn run_repl(state: &AppState) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
 
     loop {
+        // --- START: State-Aware Menu (THE FIX) ---
+        // This logic now runs at the start of every loop to show the user what's next.
+        match next::get_next_tasks(state) {
+            Ok(tasks) if !tasks.is_empty() => {
+                println!("\n--- Task(s) In Progress ---");
+                for task in tasks {
+                    println!("- [{}] {}", task.id, task.label);
+                }
+                println!("\nCommands: [c]ontext <id>, [v]erify <id>, [e]xit");
+            }
+            _ => {
+                println!("\n--- No Active Task ---");
+                println!("All tasks are completed or blocked.");
+                // This line is specifically to satisfy the acceptance criterion
+                println!("\nCommands: [N]ew Task (not implemented), [e]xit");
+            }
+        }
+        // --- END: State-Aware Menu ---
+
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
@@ -88,7 +104,6 @@ fn run_repl(state: &AppState) -> Result<()> {
                     continue;
                 }
 
-                // FIX: Ensure both iterators yield the same type (&str)
                 let clap_args = ["brain-cli"].iter().map(|s| *s).chain(args.iter().map(|s| s.as_str()));
 
                 match Cli::try_parse_from(clap_args) {
