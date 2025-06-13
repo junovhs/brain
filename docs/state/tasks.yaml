@@ -172,7 +172,7 @@ tasks:
   - id: "H2-enhance-verifier-tool"
     label: "Enhance Verifier Tool"
     goal: "Upgrade the verifier to support a 'not_contains_string' assertion for 'text_check' type criteria."
-    status: "pending"
+    status: "completed"
     needs: ["H1-refine-context-builder"]
     contextFiles:
       - "docs/scripts/src/verifier.rs"
@@ -187,3 +187,17 @@ tasks:
         type: "manual_check"
         file: "n/a"
         value: "Run './target/debug/brain-cli verify H1-refine-context-builder' and confirm it passes."
+
+# --- EPIC: I - Repository & Tooling Maintenance ---
+  - id: "I1-clean-git-history"
+    label: "Clean git history by removing tracked build artifacts"
+    goal: "Remove the 'docs/scripts/target' directory from Git's tracking history to clean the repository and prevent committing build artifacts."
+    status: "completed"
+    needs: ["H2-enhance-verifier-tool"]
+    contextFiles:
+      - ".gitignore"
+    acceptanceCriteria:
+      - description: "The command 'git rm -r --cached docs/scripts/target' was run successfully."
+        type: "manual_check"
+        file: "n/a"
+        value: "The command was run and a large commit deleting files was created."
