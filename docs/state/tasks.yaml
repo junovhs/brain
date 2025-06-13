@@ -152,7 +152,7 @@ tasks:
   - id: "H1-refine-context-builder"
     label: "Refine Context Builder"
     goal: "Refine the `context` command to only include BRAIN.md when it is explicitly listed in a task's `contextFiles`, instead of including it by default."
-    status: "pending"
+    status: "completed"
     needs: ["F1.3-integrate-api-and-governor"]
     contextFiles:
       - "docs/scripts/src/context.rs"
@@ -164,7 +164,26 @@ tasks:
         assertion: "not_contains_string"
         value: "println!(\"\\n---\\n\");\n    println!(\"// FILE: BRAIN.md\");"
       - description: "The logic to read and print BRAIN.md is moved inside the 'for file_path in files' loop."
-        type: "ast_check" # This will be skipped for now, but documents intent
+        type: "ast_check"
         file: "docs/scripts/src/context.rs"
         assertion: "is_nested_in"
         value: "fs::read_to_string(&brain_md_path)"
+
+  - id: "H2-enhance-verifier-tool"
+    label: "Enhance Verifier Tool"
+    goal: "Upgrade the verifier to support a 'not_contains_string' assertion for 'text_check' type criteria."
+    status: "pending"
+    needs: ["H1-refine-context-builder"]
+    contextFiles:
+      - "docs/scripts/src/verifier.rs"
+      - "docs/state/tasks.yaml"
+    acceptanceCriteria:
+      - description: "The perform_check function in verifier.rs handles the 'not_contains_string' assertion."
+        type: "text_check"
+        file: "docs/scripts/src/verifier.rs"
+        assertion: "contains_string"
+        value: "not_contains_string"
+      - description: "Running 'verify H1' passes, as the verifier now correctly processes the negative assertion."
+        type: "manual_check"
+        file: "n/a"
+        value: "Run './target/debug/brain-cli verify H1-refine-context-builder' and confirm it passes."

@@ -1,12 +1,16 @@
-use crate::loader::load_task_graph; // Use the shared loader
+// CORRECTED FILE: docs/scripts/src/context.rs
+
+use crate::loader::load_task_graph;
 use crate::AppState;
 use anyhow::{anyhow, Context, Result};
 use std::fs;
 
 pub fn run(state: &AppState, task_id: &str) -> Result<()> {
     let task_graph = load_task_graph(&state.project_root)?;
-    let task = task_graph.tasks.iter().find(|t| t.id == task_id).ok_or_else(|| anyhow!("Task ID '{}' not found", task_id))?;
-    // ... (rest of the logic is correct and remains the same)
+    let task = task_graph.tasks.iter().find(|t| t.id == task_id)
+        .ok_or_else(|| anyhow!("Task ID '{}' not found", task_id))?;
+
+    // Print the task header
     println!("// Current Task: [{}] {}", task.id, task.label);
     if let Some(goal) = &task.goal {
         println!("// Goal: {}", goal);
@@ -17,24 +21,25 @@ pub fn run(state: &AppState, task_id: &str) -> Result<()> {
             println!("// - {}", ac.description);
         }
     }
-    println!("\n---\n");
-    println!("// FILE: BRAIN.md");
-    let brain_md_path = state.project_root.join("BRAIN.md");
-    let brain_content = fs::read_to_string(&brain_md_path)
-        .with_context(|| format!("Failed to read BRAIN.md at {:?}", brain_md_path))?;
-    println!("{}", brain_content);
-    println!("\n---\n");
+    
+    // --- START: Refactored File-Printing Logic ---
     if let Some(files) = &task.context_files {
         for file_path in files {
-            if file_path == "BRAIN.md" { continue; }
+            // Print the separator and header *before* each file.
+            println!("\n---\n");
             println!("// FILE: {}", file_path);
             let full_path = state.project_root.join(file_path);
             match fs::read_to_string(&full_path) {
                 Ok(content) => println!("{}", content),
                 Err(e) => println!("// Error reading file {:?}: {}", full_path, e),
             }
-            println!("\n---\n");
         }
     }
+    // The final separator is printed only if there were files.
+    if task.context_files.is_some() && !task.context_files.as_ref().unwrap().is_empty() {
+        println!("\n---\n");
+    }
+    // --- END: Refactored File-Printing Logic ---
+
     Ok(())
 }
