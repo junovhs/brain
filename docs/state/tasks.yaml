@@ -219,3 +219,20 @@ tasks:
         type: "manual_check"
         file: "n/a"
         value: "Navigate to the root directory and run 'brain-cli next' to confirm it works."
+  - id: "I3-fix-relative-paths"
+    label: "Fix relative path resolution for global execution"
+    goal: "Modify the brain-cli so it correctly finds the project root (and thus tasks.yaml) from any directory where the command is run."
+    status: "pending"
+    needs: ["I2-install-cli-globally"]
+    contextFiles:
+      - "docs/scripts/src/main.rs"
+    acceptanceCriteria:
+      - description: "The AppState::new() function uses `std::env::current_dir()` to find the project root."
+        type: "text_check"
+        file: "docs/scripts/src/main.rs"
+        assertion: "contains_string"
+        value: "std::env::current_dir()"
+      - description: "Running 'brain-cli next' from the project root directory succeeds."
+        type: "manual_check"
+        file: "n/a"
+        value: "Run 'brain-cli next' from the root and confirm it works."
