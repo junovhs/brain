@@ -1,18 +1,22 @@
+// Corrected FILE: docs/scripts/src/main.rs
+
 use anyhow::Result;
 use clap::Parser;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 use std::path::PathBuf;
 
 mod context;
-mod loader; // New shared module
+mod loader;
 mod model;
 mod verifier;
-// mod next; // We will add this back when we implement the `next` task
+// mod next; // We will add this back later
 
 #[derive(Parser, Debug)]
-#[command(author, version, about="The BRAIN Protocol Command-Line Interface", long_about = None)]
+#[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Parser, Debug)]
@@ -31,34 +35,85 @@ pub struct AppState {
     project_root: PathBuf,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
-    let app_state = match AppState::new() {
-        Ok(state) => state,
-        Err(e) => {
-            eprintln!("\x1b[31mInitialization Error: {:?}\x1b[0m", e);
-            std::process::exit(1);
-        }
-    };
+    let app_state = AppState::new()?;
 
-    let result = match &cli.command {
-        Commands::Context { task_id } => context::run(&app_state, task_id),
-        Commands::Verify { task_id } => verifier::run(&app_state, task_id),
-        // Placeholder for now
+    match cli.command {
+        Some(command) => {
+            let result = run_command(&app_state, command);
+            if let Err(e) = result {
+                eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
+                std::process::exit(1);
+            }
+        }
+        None => {
+            run_repl(&app_state)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn run_command(state: &AppState, command: Commands) -> Result<()> {
+    match command {
+        Commands::Context { task_id } => context::run(state, &task_id),
+        Commands::Verify { task_id } => verifier::run(state, &task_id),
         Commands::Next => {
             println!("// TODO: Implement 'next' command logic.");
             Ok(())
-        },
+        }
         Commands::Prompt { role } => {
             println!("// TODO: Implement 'prompt' command logic for role: {}", role);
             Ok(())
         }
-    };
-
-    if let Err(e) = result {
-        eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
-        std::process::exit(1);
     }
+}
+
+fn run_repl(state: &AppState) -> Result<()> {
+    println!("Welcome to the BRAIN interactive shell. Type 'exit' to quit.");
+    let mut rl = DefaultEditor::new()?;
+
+    loop {
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                if line.trim().eq_ignore_ascii_case("exit") {
+                    break;
+                }
+
+                rl.add_history_entry(line.as_str())?;
+                let args = shlex::split(&line).unwrap_or_default();
+                if args.is_empty() {
+                    continue;
+                }
+
+                // FIX: Ensure both iterators yield the same type (&str)
+                let clap_args = ["brain-cli"].iter().map(|s| *s).chain(args.iter().map(|s| s.as_str()));
+
+                match Cli::try_parse_from(clap_args) {
+                    Ok(cli) => {
+                        if let Some(command) = cli.command {
+                            if let Err(e) = run_command(state, command) {
+                                eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        e.print()?;
+                    }
+                }
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+    Ok(())
 }
 
 impl AppState {

@@ -47,7 +47,7 @@ tasks:
   - id: "F1.1-implement-repl-loop"
     label: "Build Core TTY Read-Eval-Print Loop"
     goal: "Modify brain-cli main function to enter a persistent interactive loop when run with no subcommands, instead of just printing help."
-    status: "pending"
+    status: "completed"
     needs: ["B1-implement-verifier-checks"]
     contextFiles:
       - "docs/scripts/src/main.rs"
