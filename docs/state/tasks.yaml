@@ -25,7 +25,7 @@ tasks:
         type: "text_check"
         file: "docs/scripts/src/verifier.rs"
         assertion: "contains_string"
-        value: "Path::new(&ac.file).exists()"
+        value: "Ok(path.exists())"
       - description: "The 'text_check' match arm reads a file's content to a string."
         type: "text_check"
         file: "docs/scripts/src/verifier.rs"
