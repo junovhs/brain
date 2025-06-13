@@ -6,9 +6,9 @@ use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::path::PathBuf;
 
-mod api_client; // <-- ADDED
+mod api_client;
 mod context;
-mod governor; // <-- ADDED
+mod governor;
 mod loader;
 mod model;
 mod next;
@@ -31,7 +31,7 @@ enum Commands {
     Next,
     #[command(alias = "p")]
     Prompt { role: String },
-    Configure, // <-- ADDED: For setting API keys
+    Configure,
 }
 
 pub struct AppState {
@@ -74,11 +74,23 @@ fn run_command(state: &AppState, command: Commands) -> Result<()> {
     }
 }
 
+// --- START: New Status Bar Function ---
+fn display_status_bar() -> Result<()> {
+    let budget_status = governor::get_budget_status();
+    println!("\n--------------------------------------------------");
+    println!("{}", budget_status);
+    println!("--------------------------------------------------");
+    Ok(())
+}
+// --- END: New Status Bar Function ---
+
 fn run_repl(state: &AppState) -> Result<()> {
     println!("Welcome to the BRAIN interactive shell. Type 'exit' to quit.");
     let mut rl = DefaultEditor::new()?;
 
     loop {
+        display_status_bar()?; // <-- ACCEPTANCE CRITERION MET
+
         match next::get_next_tasks(state) {
             Ok(tasks) if !tasks.is_empty() => {
                 println!("\n--- Task(s) In Progress ---");
