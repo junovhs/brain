@@ -1,4 +1,4 @@
-// CORRECTED FILE: docs/scripts/src/main.rs
+// FILE: docs/scripts/src/main.rs
 
 use anyhow::Result;
 use clap::Parser;
@@ -6,11 +6,13 @@ use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::path::PathBuf;
 
+mod api_client; // <-- ADDED
 mod context;
+mod governor; // <-- ADDED
 mod loader;
 mod model;
-mod verifier;
 mod next;
+mod verifier;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
@@ -29,6 +31,7 @@ enum Commands {
     Next,
     #[command(alias = "p")]
     Prompt { role: String },
+    Configure, // <-- ADDED: For setting API keys
 }
 
 pub struct AppState {
@@ -60,6 +63,10 @@ fn run_command(state: &AppState, command: Commands) -> Result<()> {
         Commands::Context { task_id } => context::run(state, &task_id),
         Commands::Verify { task_id } => verifier::run(state, &task_id),
         Commands::Next => next::run(state),
+        Commands::Configure => {
+            println!("// TODO: Implement 'configure' command logic.");
+            Ok(())
+        }
         Commands::Prompt { role } => {
             println!("// TODO: Implement 'prompt' command logic for role: {}", role);
             Ok(())
@@ -72,24 +79,20 @@ fn run_repl(state: &AppState) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
 
     loop {
-        // --- START: State-Aware Menu (THE FIX) ---
-        // This logic now runs at the start of every loop to show the user what's next.
         match next::get_next_tasks(state) {
             Ok(tasks) if !tasks.is_empty() => {
                 println!("\n--- Task(s) In Progress ---");
                 for task in tasks {
                     println!("- [{}] {}", task.id, task.label);
                 }
-                println!("\nCommands: [c]ontext <id>, [v]erify <id>, [e]xit");
+                println!("\nCommands: [c]ontext <id>, [v]erify <id>, [conf]igure, [e]xit");
             }
             _ => {
                 println!("\n--- No Active Task ---");
                 println!("All tasks are completed or blocked.");
-                // This line is specifically to satisfy the acceptance criterion
-                println!("\nCommands: [N]ew Task (not implemented), [e]xit");
+                println!("\nCommands: [N]ew Task (not implemented), [conf]igure, [e]xit");
             }
         }
-        // --- END: State-Aware Menu ---
 
         let readline = rl.readline(">> ");
         match readline {

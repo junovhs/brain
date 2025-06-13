@@ -86,7 +86,7 @@ tasks:
   - id: "F1.3-integrate-api-and-governor"
     label: "Integrate API Client & Resource Governor"
     goal: "Add the necessary structures and configuration to call external LLM APIs safely, governed by the multi-tiered budget defined in BRAIN.md."
-    status: "pending"
+    status: "completed"
     needs: ["F1.1-implement-repl-loop"]
     contextFiles:
       - "docs/scripts/src/main.rs"
@@ -147,3 +147,24 @@ tasks:
       - description: "A new 'reflect.rs' module is added to the brain-cli."
         type: "file_exists"
         file: "docs/scripts/src/reflect.rs"
+
+# --- EPIC: H - Protocol Hardening & Refinement ---
+  - id: "H1-refine-context-builder"
+    label: "Refine Context Builder"
+    goal: "Refine the `context` command to only include BRAIN.md when it is explicitly listed in a task's `contextFiles`, instead of including it by default."
+    status: "pending"
+    needs: ["F1.3-integrate-api-and-governor"]
+    contextFiles:
+      - "docs/scripts/src/context.rs"
+      - "docs/state/tasks.yaml"
+    acceptanceCriteria:
+      - description: "context.rs no longer contains the line that unconditionally prints the header for BRAIN.md."
+        type: "text_check"
+        file: "docs/scripts/src/context.rs"
+        assertion: "not_contains_string"
+        value: "println!(\"\\n---\\n\");\n    println!(\"// FILE: BRAIN.md\");"
+      - description: "The logic to read and print BRAIN.md is moved inside the 'for file_path in files' loop."
+        type: "ast_check" # This will be skipped for now, but documents intent
+        file: "docs/scripts/src/context.rs"
+        assertion: "is_nested_in"
+        value: "fs::read_to_string(&brain_md_path)"
