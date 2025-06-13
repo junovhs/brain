@@ -107,7 +107,7 @@ tasks:
   - id: "F1.4-implement-gui-gauge"
     label: "Implement Multi-Toned Budget Gauge"
     goal: "The interactive shell's persistent display will render the multi-toned budget gauge, reflecting session, daily, and monthly spend."
-    status: "pending"
+    status: "completed"
     needs: ["F1.3-integrate-api-and-governor"]
     contextFiles:
       - "docs/scripts/src/main.rs"
@@ -201,3 +201,21 @@ tasks:
         type: "manual_check"
         file: "n/a"
         value: "The command was run and a large commit deleting files was created."
+
+# --- EPIC: I - Repository & Tooling Maintenance ---
+  - id: "I2-install-cli-globally"
+    label: "Install CLI for global access"
+    goal: "Install the brain-cli executable into a system path so it can be invoked from anywhere by simply typing 'brain-cli', instead of needing the full path."
+    status: "pending"
+    needs: ["F1.4-implement-gui-gauge"]
+    contextFiles:
+      - "docs/scripts/Cargo.toml"
+    acceptanceCriteria:
+      - description: "The command 'cargo install --path .' is run from the 'docs/scripts' directory."
+        type: "manual_check"
+        file: "n/a"
+        value: "Run the command and confirm it completes successfully."
+      - description: "After installation, running 'brain-cli next' from the project's root directory executes the command successfully."
+        type: "manual_check"
+        file: "n/a"
+        value: "Navigate to the root directory and run 'brain-cli next' to confirm it works."
