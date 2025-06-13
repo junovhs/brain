@@ -3,7 +3,7 @@ tasks:
   - id: "A1-setup-protocol"
     label: "Setup & Bootstrap BRAIN Protocol"
     goal: "Flesh out the brain-cli tool to be self-hosting. Specifically, implement the 'next', 'context', and 'verify' commands to operate on this YAML file structure."
-    status: "pending"
+    status: "comopleted"
     needs: []
     contextFiles:
       - "BRAIN.md"
