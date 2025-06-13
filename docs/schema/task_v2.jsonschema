@@ -1,48 +1,93 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "BRAIN Protocol Task Graph Schema",
+  "title": "BRAIN Protocol Task Graph Schema v2",
+  "description": "Defines the structure for the tasks.yaml file, which represents the project's dependency graph of tasks.",
   "type": "object",
   "properties": {
     "version": {
+      "description": "The version of the task graph schema.",
       "type": "integer",
       "const": 2
     },
     "tasks": {
+      "description": "An array of all tasks defined for the project.",
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
-          "label": { "type": "string" },
-          "goal": { "type": "string" },
-          "status": { "type": "string", "enum": ["pending", "in-progress", "blocked", "completed"] },
-          "needs": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "contextFiles": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "acceptanceCriteria": {
-            "type": "array",
-            "items": { "$ref": "#/definitions/acceptanceCriterion" }
-          }
-        },
-        "required": ["id", "label", "needs", "status"]
+        "$ref": "#/definitions/task"
       }
     }
   },
   "required": ["version", "tasks"],
   "definitions": {
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "A unique, URL-safe identifier for the task.",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "label": {
+          "description": "A short, human-readable label for the task.",
+          "type": "string"
+        },
+        "goal": {
+          "description": "A more detailed, one-sentence description of the task's objective. Optional.",
+          "type": "string"
+        },
+        "status": {
+          "description": "The current execution status of the task.",
+          "type": "string",
+          "enum": ["pending", "in-progress", "blocked", "completed"]
+        },
+        "needs": {
+          "description": "An array of task IDs that must be completed before this task can start.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contextFiles": {
+          "description": "An optional array of file paths (relative to project root) needed for the AI briefing.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptanceCriteria": {
+          "description": "An optional array of verifiable success conditions for the task.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/acceptanceCriterion"
+          }
+        }
+      },
+      "required": ["id", "label", "needs", "status"]
+    },
     "acceptanceCriterion": {
       "type": "object",
       "properties": {
-        "description": { "type": "string" },
-        "type": { "type": "string", "enum": ["file_exists", "text_check", "ast_check", "test_pass"] },
-        "file": { "type": "string" },
-        "assertion": { "type": "string" },
-        "value": { "type": "string" }
+        "description": {
+          "description": "A human-readable description of what this criterion verifies.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of check to be performed by the Gatekeeper.",
+          "type": "string",
+          "enum": ["file_exists", "text_check", "ast_check", "test_pass"]
+        },
+        "file": {
+          "description": "The file path (relative to project root) to be checked.",
+          "type": "string"
+        },
+        "assertion": {
+          "description": "An optional assertion type for the check (e.g., 'contains_string').",
+          "type": "string"
+        },
+        "value": {
+          "description": "An optional value to be used by the assertion (e.g., the string to search for).",
+          "type": "string"
+        }
       },
       "required": ["description", "type", "file"]
     }

@@ -1,18 +1,52 @@
-# Template for defining a project's task graph.
-# Use this as a starting point.
+# =================================================================
+# BRAIN Protocol Task Graph Template (v2)
+# =================================================================
+#
+# Use this file as a starting point for defining a new set of tasks
+# for your project.
+#
+# INSTRUCTIONS:
+# 1. Copy this content into `tasks.yaml` (or append to it).
+# 2. Replace the placeholder values with your actual task details.
+# 3. Ensure `id` values are unique within the file.
+# 4. Define dependencies correctly in the `needs` array.
+#
+# -----------------------------------------------------------------
 
 version: 2
 tasks:
   - id: "T1-example-task"
-    label: "Example Task Label"
-    goal: "A clear, one-sentence goal for this specific task."
-    status: "pending" # pending | in-progress | blocked | completed
-    needs: [] # List of other task IDs that must be 'completed' first.
+    label: "Example Task: Implement User Login Button"
+    goal: "Render a functional login button on the main page. The click handler should, for now, just log a message to the console."
+    status: "pending" # Valid statuses: pending | in-progress | blocked | completed
+    needs: [] # List of other task IDs that must be 'completed' before this one can start.
     contextFiles:
-      - "path/to/relevant/file.js"
+      - "src/index.html"
+      - "src/main.js"
+      - "src/styles.css"
     acceptanceCriteria:
-      - description: "A human-readable description of what success looks like."
-        type: "file_exists" # file_exists | text_check | test_pass
-        file: "path/to/relevant/file.js"
-        # assertion: (optional) e.g., "contains_string"
-        # value: (optional) e.g., "hello world"
+      - description: "The login button HTML element exists in index.html."
+        type: "text_check"
+        file: "src/index.html"
+        assertion: "contains_string"
+        value: "<button id=\"loginButton\">Log In</button>"
+      - description: "A click event listener is attached to the login button."
+        type: "ast_check" # This check type would need to be implemented in the verifier
+        file: "src/main.js"
+        assertion: "event_listener_attached"
+        value: "loginButton.click"
+
+  - id: "T2-example-dependent-task"
+    label: "Example Task: Style the Login Button"
+    goal: "Apply CSS to make the login button visually appealing."
+    status: "pending"
+    needs:
+      - "T1-example-task" # This task cannot start until T1 is complete.
+    contextFiles:
+      - "src/styles.css"
+    acceptanceCriteria:
+      - description: "A CSS rule for #loginButton exists in the stylesheet."
+        type: "text_check"
+        file: "src/styles.css"
+        assertion: "contains_string"
+        value: "#loginButton {"

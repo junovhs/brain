@@ -3,11 +3,13 @@ use clap::Parser;
 use std::path::PathBuf;
 
 mod context;
+mod loader; // New shared module
 mod model;
 mod verifier;
+// mod next; // We will add this back when we implement the `next` task
 
 #[derive(Parser, Debug)]
-#[command(author, version, about="The BRAIN Protocol Interactive Shell", long_about = None)]
+#[command(author, version, about="The BRAIN Protocol Command-Line Interface", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -15,23 +17,22 @@ struct Cli {
 
 #[derive(Parser, Debug)]
 enum Commands {
-    /// Builds and prints the LLM context for a specific task.
+    #[command(alias = "c")]
     Context { task_id: String },
-    /// Verifies a specific task against its acceptance criteria.
+    #[command(alias = "v")]
     Verify { task_id: String },
-    /// Lists tasks that can be worked on.
+    #[command(alias = "n")]
     Next,
+    #[command(alias = "p")]
+    Prompt { role: String },
 }
 
-/// Contains shared state like the project root path.
 pub struct AppState {
     project_root: PathBuf,
 }
 
 fn main() {
     let cli = Cli::parse();
-
-    // Establish AppState once.
     let app_state = match AppState::new() {
         Ok(state) => state,
         Err(e) => {
@@ -43,8 +44,13 @@ fn main() {
     let result = match &cli.command {
         Commands::Context { task_id } => context::run(&app_state, task_id),
         Commands::Verify { task_id } => verifier::run(&app_state, task_id),
+        // Placeholder for now
         Commands::Next => {
             println!("// TODO: Implement 'next' command logic.");
+            Ok(())
+        },
+        Commands::Prompt { role } => {
+            println!("// TODO: Implement 'prompt' command logic for role: {}", role);
             Ok(())
         }
     };
@@ -56,11 +62,10 @@ fn main() {
 }
 
 impl AppState {
-    /// Creates a new AppState, determining the project root.
     fn new() -> Result<Self> {
         let exe_path = std::env::current_exe()?;
-        let scripts_dir = exe_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine scripts directory from executable path."))?;
-        let project_root = scripts_dir.parent().and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine project root from scripts directory."))?;
+        let scripts_dir = exe_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine scripts directory"))?;
+        let project_root = scripts_dir.parent().and_then(|p| p.parent()).ok_or_else(|| anyhow::anyhow!("Could not determine project root"))?;
         Ok(AppState {
             project_root: project_root.to_path_buf(),
         })

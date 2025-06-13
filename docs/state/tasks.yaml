@@ -87,3 +87,32 @@ tasks:
         file: "docs/scripts/src/main.rs"
         assertion: "function_call"
         value: "display_status_bar"
+
+  # --- EPIC: G1 - Implement Multi-Agent Tooling ---
+
+  - id: "G1.1-implement-qa-agent-flow"
+    label: "Integrate QA Agent into Protocol"
+    goal: "Modify the brain-cli tool and protocol to support a dedicated QA Agent step. This involves creating a test file alongside every feature file."
+    status: "pending"
+    needs: ["F1.4-implement-gui-gauge"] # Depends on the shell being mostly complete
+    acceptanceCriteria:
+      - description: "The 'verify' command now includes a step to run 'cargo test'."
+        type: "text_check"
+        file: "docs/scripts/src/verifier.rs"
+        assertion: "contains_string"
+        value: "cargo test"
+      - description: "The task template is updated to include a 'testFile' path."
+        type: "text_check"
+        file: "docs/state/tasks.template.yaml"
+        assertion: "contains_string"
+        value: "testFile:"
+
+  - id: "G1.2-implement-reflector-flow"
+    label: "Automate ADR/History Generation"
+    goal: "Create a 'brain-cli reflect <task_id>' command that auto-generates a historical debrief of a completed task."
+    status: "pending"
+    needs: ["G1.1-implement-qa-agent-flow"]
+    acceptanceCriteria:
+      - description: "A new 'reflect.rs' module is added to the brain-cli."
+        type: "file_exists"
+        file: "docs/scripts/src/reflect.rs"
