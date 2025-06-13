@@ -9,7 +9,7 @@ tasks:
   - id: "B1-implement-verifier-checks"
     label: "Implement Core Verifier Checks"
     goal: "Upgrade the verifier to perform its two most basic checks: 'file_exists' and 'text_check'. This is the first step in making the Gatekeeper trustworthy."
-    status: "pending"
+    status: "completed"
     needs:
       - "A1-setup-protocol"
     contextFiles:
