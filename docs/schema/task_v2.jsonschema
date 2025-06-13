@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BRAIN Protocol Task Graph Schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 2
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+          "label": { "type": "string" },
+          "goal": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "in-progress", "blocked", "completed"] },
+          "needs": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "contextFiles": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "acceptanceCriteria": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/acceptanceCriterion" }
+          }
+        },
+        "required": ["id", "label", "needs", "status"]
+      }
+    }
+  },
+  "required": ["version", "tasks"],
+  "definitions": {
+    "acceptanceCriterion": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["file_exists", "text_check", "ast_check", "test_pass"] },
+        "file": { "type": "string" },
+        "assertion": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["description", "type", "file"]
+    }
+  }
+}

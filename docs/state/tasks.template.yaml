@@ -1,0 +1,18 @@
+# Template for defining a project's task graph.
+# Use this as a starting point.
+
+version: 2
+tasks:
+  - id: "T1-example-task"
+    label: "Example Task Label"
+    goal: "A clear, one-sentence goal for this specific task."
+    status: "pending" # pending | in-progress | blocked | completed
+    needs: [] # List of other task IDs that must be 'completed' first.
+    contextFiles:
+      - "path/to/relevant/file.js"
+    acceptanceCriteria:
+      - description: "A human-readable description of what success looks like."
+        type: "file_exists" # file_exists | text_check | test_pass
+        file: "path/to/relevant/file.js"
+        # assertion: (optional) e.g., "contains_string"
+        # value: (optional) e.g., "hello world"

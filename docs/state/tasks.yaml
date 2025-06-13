@@ -1,0 +1,25 @@
+version: 2
+tasks:
+  - id: "A1-setup-protocol"
+    label: "Setup & Bootstrap BRAIN Protocol"
+    goal: "Flesh out the brain-cli tool to be self-hosting. Specifically, implement the 'next', 'context', and 'verify' commands to operate on this YAML file structure."
+    status: "pending"
+    needs: []
+    contextFiles:
+      - "BRAIN.md"
+      - "docs/scripts/src/main.rs"
+      - "docs/scripts/src/context.rs"
+      - "docs/scripts/src/verifier.rs"
+      - "docs/scripts/src/model.rs"
+      - "docs/state/tasks.yaml"
+    acceptanceCriteria:
+      - description: "The 'next' command should identify this task as unblocked."
+        type: "test_pass"
+        file: "brain-cli"
+        assertion: "next_command"
+        value: "A1-setup-protocol"
+      - description: "The 'context A1-setup-protocol' command should print the content of all context files."
+        type: "test_pass"
+        file: "brain-cli"
+        assertion: "context_command"
+        value: "A1-setup-protocol"
