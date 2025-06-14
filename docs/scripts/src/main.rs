@@ -1,5 +1,5 @@
 // CORRECT AND FINAL FILE: docs/scripts/src/main.rs
-// THIS VERSION FIXES THE ASYNC/AWAIT MISMATCH.
+// THIS VERSION DECLARES THE NEW `utils` MODULE.
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
@@ -20,6 +20,7 @@ mod model;
 mod next;
 mod reflect;
 mod sketch;
+mod utils; // Added module declaration
 mod verifier;
 mod versioning;
 
@@ -92,16 +93,11 @@ async fn main() -> Result<()> {
 
 async fn run_command(state: &AppState, command: Commands) -> Result<()> {
     match command {
-        // These are synchronous and do not need .await
         Commands::Context { task_id } => context::run(state, &task_id),
         Commands::Verify { task_id } => verifier::run(state, &task_id),
         Commands::Next => next::run(state),
         Commands::Conclude { task_id } => conclude::run(state, &task_id),
-        
-        // This is now correctly async and needs .await
         Commands::Reflect { task_id } => reflect::run(state, &task_id).await,
-
-        // These are placeholders and currently sync
         Commands::Configure => {
             println!("// TODO: Implement 'configure' command logic.");
             Ok(())
@@ -179,10 +175,11 @@ async fn run_repl(state: &AppState) -> Result<()> {
     Ok(())
 }
 
+// Inside docs/scripts/src/main.rs
 impl AppState {
     fn new() -> Result<Self> {
-        let current_dir = env::current_dir()?;
-        let project_root = find_project_root(&current_dir).ok_or_else(|| {
+        let current_dir = env::current_dir()?; // This line must exist
+        let project_root = find_project_root(&current_dir).ok_or_else(|| { 
             anyhow!("Cannot find project root containing BRAIN.md from the current directory.")
         })?;
 

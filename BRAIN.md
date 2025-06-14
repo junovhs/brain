@@ -80,7 +80,7 @@ protocol_roles:
   - role: "reflector"
     description: "(Future) AI persona responsible for summarizing decisions and generating historical records (ADRs), creating an auditable knowledge base."
     prompt_file: "docs/prompts/reflector.md"
----
+
 
 # Section F: Product Vision & Intent (Human-Readable Elaboration)
 
@@ -162,9 +162,11 @@ This is the exact, repeatable procedure for executing any work within the protoc
     -   The `pre-commit` hook automatically re-runs the `verify` command as a final, non-negotiable quality gate.
     -   If it passes, the commit is successful, creating a permanent, auditable record of the verified change.
 
-7.  **CONCLUDE (Update State):**
-    -   The user updates the `status` of the task in `tasks.yaml` to `completed`.
-    -   This final state change is committed to the repository. The loop is now complete and ready to begin again at Step 2 for the next task.
+7.  **CONCLUDE (Update State & Snapshot):**
+    -   The user runs `brain-cli conclude <task_id>` (or `d <task_id>` within the REPL).
+    -   The tool programmatically updates the `status` of the task in `tasks.yaml` to `completed`.
+    -   Simultaneously, it creates a version snapshot in the project's local database (`.brain_db.sqlite3`), recording the SHA-256 hash of all project files. This links the code state to the completed task.
+    -   This final state change (updated `tasks.yaml`) is committed to the repository. The loop is now complete and ready to begin again at Step 2 for the next task.
 
 ## G.3 The `brain-cli` Tool Specification
 -   **`brain-cli configure`**: An interactive command to securely set and store API keys.
@@ -173,4 +175,5 @@ This is the exact, repeatable procedure for executing any work within the protoc
 -   **`brain-cli verify <task_id>` (alias: `v`)**: Executes the Gatekeeper checks for a given task.
 -   **`brain-cli prompt <role>` (alias: `p`)**: Prints the specified persona prompt from the library.
 -   **`brain-cli cost --id <task_pattern>`**: (Future) Retroactively analyzes the git history to calculate the total API cost for a feature/epic.
--   **`brain-cli` (no arguments)**: (Future) Launches the interactive TTY shell that guides the user through this entire loop.
+-   **`brain-cli` (no arguments)**: Launches the interactive TTY shell that guides the user through this entire loop, accepting direct commands (e.g., `next`, `verify <id>`).
+-   **`brain-cli conclude <task_id>` (alias: `d`, `done`)**: Marks a task as completed in `tasks.yaml` and creates a version snapshot in the database.

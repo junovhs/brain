@@ -5,7 +5,6 @@ tasks:
   goal: Add 'reqwest', 'tokio', and 'sha2' as dependencies to Cargo.toml to prepare for versioning and future API calls.
   status: completed
   needs: []
-  contextFiles: null
   contextQuery:
     prompt: 'Add ''reqwest'' (with ''json'' feature), ''tokio'' (with ''full'' feature), and ''sha2'' to the [dependencies] section of docs/scripts/Cargo.toml. Also, ensure the main function in main.rs is marked with #[tokio::main].'
     tokenBudget: 2000
@@ -25,46 +24,45 @@ tasks:
     file: docs/scripts/src/main.rs
     assertion: contains_string
     value: '#[tokio::main]'
-  testFile: null
 - id: FINAL-2-implement-hasher
   label: 'Integration: Implement a file hashing utility'
   goal: Create a utility function that can take a file path, read the file, and return its SHA-256 hash. This is a core component of the versioning system.
-  status: pending
+  status: completed
   needs:
   - FINAL-1-add-deps
-  contextFiles: null
   contextQuery:
     prompt: Create a new module `utils.rs`. Inside it, create a public function `calculate_file_hash` that takes a `&Path` as an argument. This function should read the file's bytes and use the `sha2` crate to compute and return a hex string representation of the SHA-256 hash. Ensure this new module is declared in `main.rs`.
     tokenBudget: 3000
   acceptanceCriteria:
-  - description: A new 'utils.rs' file exists in the src directory.
-    type: file_exists
-    file: docs/scripts/src/utils.rs
-    assertion: null
-    value: null
-  - description: utils.rs contains a function named 'calculate_file_hash'.
-    type: text_check
-    file: docs/scripts/src/utils.rs
-    assertion: contains_string
-    value: pub fn calculate_file_hash
-  - description: The `sha2` crate is used within utils.rs.
-    type: text_check
-    file: docs/scripts/src/utils.rs
-    assertion: contains_string
-    value: use sha2::{Sha256, Digest};
-  - description: main.rs declares the 'utils' module.
-    type: text_check
-    file: docs/scripts/src/main.rs
-    assertion: contains_string
-    value: mod utils;
-  testFile: null
+    - description: "A new 'utils.rs' file exists in the src directory."
+      type: "file_exists"
+      file: "docs/scripts/src/utils.rs"
+    - description: "utils.rs contains a function named 'calculate_file_hash'."
+      type: "text_check"
+      file: "docs/scripts/src/utils.rs"
+      assertion: "contains_string"
+      value: "pub fn calculate_file_hash"
+    - description: "The `sha2` crate is imported in utils.rs."
+      type: "text_check"
+      file: "docs/scripts/src/utils.rs"
+      assertion: "contains_string"
+      value: "use sha2"
+    - description: "The Sha256 hasher is instantiated in utils.rs."
+      type: "text_check"
+      file: "docs/scripts/src/utils.rs"
+      assertion: "contains_string"
+      value: "Sha256::new()"
+    - description: "main.rs declares the 'utils' module."
+      type: "text_check"
+      file: "docs/scripts/src/main.rs"
+      assertion: "contains_string"
+      value: "mod utils;"
 - id: FINAL-3-integrate-versioning
   label: 'Integration: Create version snapshot on ''conclude'''
   goal: Enhance the 'conclude' command to trigger the creation of a new version snapshot in the database, capturing the state of all project files.
-  status: pending
+  status: completed
   needs:
   - FINAL-2-implement-hasher
-  contextFiles: null
   contextQuery:
     prompt: 'Modify `conclude.rs`. After successfully updating the task status, it should: 1. Scan the entire project directory (excluding .git, target, etc.). 2. For each file, use the new `utils::calculate_file_hash` to get its hash. 3. Collect this into a `Vec<ScannedFileInfo>`. 4. Populate a `SnapshotRequest` object. 5. Call the `versioning::create_project_snapshot` function to save the version to the database.'
     tokenBudget: 4000
@@ -84,31 +82,60 @@ tasks:
     file: docs/scripts/Cargo.toml
     assertion: contains_string
     value: walkdir =
-  testFile: null
 - id: FINAL-4-prepare-for-treesitter
   label: 'Integration: Prepare Sketch module for Tree-sitter'
   goal: Update the placeholder `sketch.rs` module to include the necessary structures and function signatures for a future Tree-sitter implementation, completing the conceptual extraction from `diranalyze`.
-  status: pending
+  status: completed
   needs:
   - FINAL-3-integrate-versioning
-  contextFiles: null
   contextQuery:
     prompt: In `sketch.rs`, add placeholder structs for `SymbolGraph` and `CodeSymbol`. Modify the `generate_context_package` function signature to accept a reference to the `&AppState`. Add placeholder comments outlining where `tree-sitter` would be used to parse files and build the symbol graph.
     tokenBudget: 3000
   acceptanceCriteria:
-  - description: sketch.rs contains a placeholder struct named 'SymbolGraph'.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
-    value: pub struct SymbolGraph
-  - description: sketch.rs contains a placeholder struct named 'CodeSymbol'.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
-    value: pub struct CodeSymbol
-  - description: The `generate_context_package` function signature now accepts `&AppState`.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
+  - description: "sketch.rs contains a placeholder struct named 'SymbolGraph'." # VERIFIED THIS IS CORRECT
+    type: "text_check"
+    file: "docs/scripts/src/sketch.rs"
+    assertion: "contains_string"
+    value: "pub struct SymbolGraph"
+  - description: "sketch.rs contains a placeholder struct named 'CodeSymbol'." # VERIFIED THIS IS CORRECT
+    type: "text_check"
+    file: "docs/scripts/src/sketch.rs"
+    assertion: "contains_string"
+    value: "pub struct CodeSymbol"
+  - description: "The `generate_context_package` function signature now accepts `&AppState`." # VERIFIED THIS IS CORRECT AND HAS DESCRIPTION
+    type: "text_check"
+    file: "docs/scripts/src/sketch.rs"
+    assertion: "contains_string"
     value: 'state: &AppState'
-  testFile: null
+
+# --- EPIC: M - Maintenance & Documentation ---
+
+  - id: "M1-update-documentation"
+    label: "Docs: Update BRAIN.md and ADR-001 for new features"
+    goal: "Ensure BRAIN.md and ADR-001 accurately reflect the new `conclude` command, the versioning system, and the refactored context engine."
+    status: "pending"
+    needs: ["FINAL-4-prepare-for-treesitter"] # Depends on all functional work being done
+    contextQuery:
+      prompt: "Review BRAIN.md, specifically Section G.2 (Development Cycle), and ADR-001. Update them to include the new `conclude` command, the database-backed versioning system triggered by `conclude`, and the replacement of static `contextFiles` with the intelligent `contextQuery` and `sketch.rs` module. Reflect the deprecation of manual YAML editing for task completion."
+      tokenBudget: 8000
+    acceptanceCriteria:
+      - description: "BRAIN.md Section G.2 accurately describes the `conclude` command and its role."
+        type: "text_check"
+        file: "BRAIN.md"
+        assertion: "contains_string"
+        value: "brain-cli conclude <task_id>"
+      - description: "BRAIN.md Section G.2 mentions version snapshot creation upon task conclusion."
+        type: "text_check"
+        file: "BRAIN.md"
+        assertion: "contains_string"
+        value: "version snapshot"
+      - description: "ADR-001 (or a new ADR) documents the shift from manual YAML editing to the `conclude` command."
+        type: "text_check"
+        file: "docs/history/ADR-001_Initial_Protocol_Design.md"
+        assertion: "contains_string"
+        value: "conclude command"
+      - description: "ADR-001 (or a new ADR) mentions the integration of database versioning."
+        type: "text_check"
+        file: "docs/history/ADR-001_Initial_Protocol_Design.md"
+        assertion: "contains_string"
+        value: "database versioning"

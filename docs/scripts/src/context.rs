@@ -29,7 +29,8 @@ pub fn run(state: &AppState, task_id: &str) -> Result<()> {
 
     // --- Intelligent Context Generation (The New Way) ---
     if let Some(query) = &task.context_query {
-        let context_package = sketch::generate_context_package(query)
+        // Pass the AppState to the sketch generator
+        let context_package = sketch::generate_context_package(state, query)
             .with_context(|| "Failed to generate intelligent context package")?;
         println!("{}", context_package);
     
