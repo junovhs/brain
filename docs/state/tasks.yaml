@@ -1,265 +1,114 @@
 version: 2
 tasks:
-  - id: "A1-setup-protocol"
-    label: "Bootstrap BRAIN Protocol"
-    status: "completed"
-    needs: []
-
-  - id: "B1-implement-verifier-checks"
-    label: "Implement Core Verifier Checks"
-    status: "completed"
-    needs: ["A1-setup-protocol"]
-
-  - id: "C1-fix-yaml-deserialization"
-    label: "Fix Serde Deserialization for Optional Fields"
-    goal: "Ensure that the brain-cli tool can correctly parse all fields, including optional camelCase fields, from the tasks.yaml file into the corresponding Rust structs."
-    status: "completed" # We mark as completed because we just did the work.
-    needs: ["B1-implement-verifier-checks"]
-    contextFiles:
-      - "docs/scripts/src/model.rs"
-      - "docs/scripts/src/loader.rs"
-    acceptanceCriteria:
-      - description: "The Task struct in model.rs uses the #[serde(rename_all = \"camelCase\")] attribute."
-        type: "text_check"
-        file: "docs/scripts/src/model.rs"
-        value: "#[serde(rename_all = \"camelCase\")]"
-      - description: "A unit test exists in loader.rs that asserts acceptance_criteria is not None."
-        type: "text_check"
-        file: "docs/scripts/src/loader.rs"
-        value: "assert!(task_f1_1.acceptance_criteria.is_some()"
-
-  - id: "D1-configure-gitignore"
-    label: "Configure gitignore to exclude build artifacts"
-    goal: "Prevent temporary build artifacts and secrets from being committed to the repository."
-    status: "completed"
-    needs: ["C1-fix-yaml-deserialization"]
-    contextFiles:
-      - ".gitignore"
-    acceptanceCriteria:
-      - description: "The .gitignore file contains an entry for the 'target/' directory."
-        type: "text_check"
-        file: ".gitignore"
-        value: "target/"
-
-  # --- EPIC: F1 - Build Interactive BRAIN Shell ---
-  # This is the new, granular breakdown of our interactive shell vision.
-
-  - id: "F1.1-implement-repl-loop"
-    label: "Build Core TTY Read-Eval-Print Loop"
-    goal: "Modify brain-cli main function to enter a persistent interactive loop when run with no subcommands, instead of just printing help."
-    status: "completed"
-    needs: ["B1-implement-verifier-checks"]
-    contextFiles:
-      - "docs/scripts/src/main.rs"
-    acceptanceCriteria:
-      - description: "main.rs uses a loop to repeatedly read user input from stdin."
-        type: "text_check"
-        file: "docs/scripts/src/main.rs"
-        assertion: "contains_string"
-        value: "loop {"
-      - description: "A dependency on a line-reading crate (e.g., 'rustyline') is added to Cargo.toml."
-        type: "text_check"
-        file: "docs/scripts/Cargo.toml"
-        assertion: "contains_string"
-        value: "rustyline"
-
-  - id: "F1.2-implement-state-aware-menu"
-    label: "Implement State-Aware Command Menu"
-    goal: "The REPL will read the tasks.yaml file to determine the current project state and display a dynamic menu of valid commands."
-    status: "completed"
-    needs: ["F1.1-implement-repl-loop"]
-    contextFiles:
-      - "docs/scripts/src/main.rs"
-      - "docs/state/tasks.yaml"
-    acceptanceCriteria:
-      - description: "The main loop determines the next available task by calling a 'get_next_task' function."
-        type: "ast_check" # We'll need to implement this check type
-        file: "docs/scripts/src/main.rs"
-        assertion: "function_call"
-        value: "get_next_task"
-      - description: "The shell displays different menus for 'No Active Task' vs 'Task In Progress' states."
-        type: "text_check"
-        file: "docs/scripts/src/main.rs"
-        assertion: "contains_string"
-        value: "[N]ew Task"
-
-  - id: "F1.3-integrate-api-and-governor"
-    label: "Integrate API Client & Resource Governor"
-    goal: "Add the necessary structures and configuration to call external LLM APIs safely, governed by the multi-tiered budget defined in BRAIN.md."
-    status: "completed"
-    needs: ["F1.1-implement-repl-loop"]
-    contextFiles:
-      - "docs/scripts/src/main.rs"
-      - "BRAIN.md"
-    acceptanceCriteria:
-      - description: "A new module 'api_client.rs' exists for handling HTTP requests."
-        type: "file_exists"
-        file: "docs/scripts/src/api_client.rs"
-      - description: "A new module 'governor.rs' exists to parse BRAIN.md and track budgets."
-        type: "file_exists"
-        file: "docs/scripts/src/governor.rs"
-      - description: "The CLI has a 'configure' command to set the API key securely."
-        type: "text_check"
-        file: "docs/scripts/src/main.rs"
-        assertion: "contains_string"
-        value: "Commands::Configure"
-
-  - id: "F1.4-implement-gui-gauge"
-    label: "Implement Multi-Toned Budget Gauge"
-    goal: "The interactive shell's persistent display will render the multi-toned budget gauge, reflecting session, daily, and monthly spend."
-    status: "completed"
-    needs: ["F1.3-integrate-api-and-governor"]
-    contextFiles:
-      - "docs/scripts/src/main.rs"
-      - "docs/scripts/src/governor.rs"
-    acceptanceCriteria:
-      - description: "The main loop contains a function 'display_status_bar' that is called on every iteration."
-        type: "ast_check"
-        file: "docs/scripts/src/main.rs"
-        assertion: "function_call"
-        value: "display_status_bar"
-
-  # --- EPIC: G1 - Implement Multi-Agent Tooling ---
-
-  - id: "G1.1-implement-qa-agent-flow"
-    label: "Integrate QA Agent into Protocol"
-    goal: "Modify the brain-cli tool and protocol to support a dedicated QA Agent step. This involves creating a test file alongside every feature file."
-    status: "completed"
-    needs: ["F1.4-implement-gui-gauge"] # Depends on the shell being mostly complete
-    acceptanceCriteria:
-      - description: "The 'verify' command now includes a step to run 'cargo test'."
-        type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
-        assertion: "contains_string"
-        value: "cargo test"
-      - description: "The task template is updated to include a 'testFile' path."
-        type: "text_check"
-        file: "docs/state/tasks.template.yaml"
-        assertion: "contains_string"
-        value: "testFile:"
-
-  - id: "G1.1.1-refactor-context-engine"
-    label: "Refactor: Cannibalize diranalyze for intelligent context"
-    goal: "Incorporate the database, versioning, and semantic sketch concepts from the 'diranalyze' project into the brain-cli to enable intelligent, token-budgeted context generation."
-    status: "completed"
-    needs: ["G1.1-implement-qa-agent-flow"]
-    acceptanceCriteria:
-      - description: "The CLI has a dependency on 'rusqlite' and 'chrono' for database operations."
-        type: "text_check"
-        file: "docs/scripts/Cargo.toml"
-        assertion: "contains_string"
-        value: "rusqlite"
-      - description: "A 'db.rs' module exists for managing the SQLite connection and schema."
-        type: "file_exists"
-        file: "docs/scripts/src/db.rs"
-      - description: "A 'sketch.rs' module exists to serve as the new intelligent context builder."
-        type: "file_exists"
-        file: "docs/scripts/src/sketch.rs"
-      - description: "The Task model in 'model.rs' now includes a 'contextQuery' struct."
-        type: "text_check"
-        file: "docs/scripts/src/model.rs"
-        assertion: "contains_string"
-        value: "pub context_query: Option<ContextQuery>"
-
-  - id: "G1.2-implement-reflector-flow"
-    label: "Automate ADR/History Generation"
-    goal: "Create a 'brain-cli reflect <task_id>' command that auto-generates a historical debrief of a completed task."
-    status: "pending"
-    needs: ["G1.1.1-refactor-context-engine"]
-    contextQuery:
-      prompt: "The user wants to create a new 'reflect' command in the CLI. This involves creating a 'reflect.rs' module, adding it to main.rs, and adding a 'Reflect' variant to the 'Commands' enum. The new command should take a 'task_id' as an argument."
-      tokenBudget: 4000
-    acceptanceCriteria:
-      - description: "A new 'reflect.rs' module is added to the brain-cli."
-        type: "file_exists"
-        file: "docs/scripts/src/reflect.rs"
-
-# --- EPIC: H - Protocol Hardening & Refinement ---
-  - id: "H1-refine-context-builder"
-    label: "Refine Context Builder"
-    goal: "Refine the `context` command to only include BRAIN.md when it is explicitly listed in a task's `contextFiles`, instead of including it by default."
-    status: "completed"
-    needs: ["F1.3-integrate-api-and-governor"]
-    contextFiles:
-      - "docs/scripts/src/context.rs"
-      - "docs/state/tasks.yaml"
-    acceptanceCriteria:
-      - description: "context.rs no longer contains the line that unconditionally prints the header for BRAIN.md."
-        type: "text_check"
-        file: "docs/scripts/src/context.rs"
-        assertion: "not_contains_string"
-        value: "println!(\"\\n---\\n\");\n    println!(\"// FILE: BRAIN.md\");"
-      - description: "The logic to read and print BRAIN.md is moved inside the 'for file_path in files' loop."
-        type: "ast_check"
-        file: "docs/scripts/src/context.rs"
-        assertion: "is_nested_in"
-        value: "fs::read_to_string(&brain_md_path)"
-
-  - id: "H2-enhance-verifier-tool"
-    label: "Enhance Verifier Tool"
-    goal: "Upgrade the verifier to support a 'not_contains_string' assertion for 'text_check' type criteria."
-    status: "completed"
-    needs: ["H1-refine-context-builder"]
-    contextFiles:
-      - "docs/scripts/src/verifier.rs"
-      - "docs/state/tasks.yaml"
-    acceptanceCriteria:
-      - description: "The perform_check function in verifier.rs handles the 'not_contains_string' assertion."
-        type: "text_check"
-        file: "docs/scripts/src/verifier.rs"
-        assertion: "contains_string"
-        value: "not_contains_string"
-      - description: "Running 'verify H1' passes, as the verifier now correctly processes the negative assertion."
-        type: "manual_check"
-        file: "n/a"
-        value: "Run './target/debug/brain-cli verify H1-refine-context-builder' and confirm it passes."
-
-# --- EPIC: I - Repository & Tooling Maintenance ---
-  - id: "I1-clean-git-history"
-    label: "Clean git history by removing tracked build artifacts"
-    goal: "Remove the 'docs/scripts/target' directory from Git's tracking history to clean the repository and prevent committing build artifacts."
-    status: "completed"
-    needs: ["H2-enhance-verifier-tool"]
-    contextFiles:
-      - ".gitignore"
-    acceptanceCriteria:
-      - description: "The command 'git rm -r --cached docs/scripts/target' was run successfully."
-        type: "manual_check"
-        file: "n/a"
-        value: "The command was run and a large commit deleting files was created."
-
-# --- EPIC: I - Repository & Tooling Maintenance ---
-  - id: "I2-install-cli-globally"
-    label: "Install CLI for global access"
-    goal: "Install the brain-cli executable into a system path so it can be invoked from anywhere by simply typing 'brain-cli', instead of needing the full path."
-    status: "completed" 
-    needs: ["F1.4-implement-gui-gauge"]
-    contextFiles:
-      - "docs/scripts/Cargo.toml"
-    acceptanceCriteria:
-      - description: "The command 'cargo install --path .' is run from the 'docs/scripts' directory."
-        type: "manual_check"
-        file: "n/a"
-        value: "Run the command and confirm it completes successfully."
-      - description: "After installation, running 'brain-cli next' from the project's root directory executes the command successfully."
-        type: "manual_check"
-        file: "n/a"
-        value: "Navigate to the root directory and run 'brain-cli next' to confirm it works."
-
-  - id: "I3-fix-relative-paths"
-    label: "Fix relative path resolution for global execution"
-    goal: "Modify the brain-cli so it correctly finds the project root (and thus tasks.yaml) from any directory where the command is run."
-    status: "completed" 
-    needs: ["I2-install-cli-globally"]
-    contextFiles:
-      - "docs/scripts/src/main.rs"
-    acceptanceCriteria:
-      - description: "The AppState::new() function uses `std::env::current_dir()` to find the project root."
-        type: "text_check"
-        file: "docs/scripts/src/main.rs"
-        assertion: "contains_string"
-        value: "std::env::current_dir()"
-      - description: "Running 'brain-cli next' from the project root directory succeeds."
-        type: "manual_check"
-        file: "n/a"
-        value: "Run 'brain-cli next' from the root and confirm it works."
+- id: FINAL-1-add-deps
+  label: 'Integration: Add final dependencies for hashing and HTTP'
+  goal: Add 'reqwest', 'tokio', and 'sha2' as dependencies to Cargo.toml to prepare for versioning and future API calls.
+  status: completed
+  needs: []
+  contextFiles: null
+  contextQuery:
+    prompt: 'Add ''reqwest'' (with ''json'' feature), ''tokio'' (with ''full'' feature), and ''sha2'' to the [dependencies] section of docs/scripts/Cargo.toml. Also, ensure the main function in main.rs is marked with #[tokio::main].'
+    tokenBudget: 2000
+  acceptanceCriteria:
+  - description: Cargo.toml contains a dependency on 'reqwest'.
+    type: text_check
+    file: docs/scripts/Cargo.toml
+    assertion: contains_string
+    value: reqwest =
+  - description: Cargo.toml contains a dependency on 'sha2'.
+    type: text_check
+    file: docs/scripts/Cargo.toml
+    assertion: contains_string
+    value: sha2 =
+  - description: 'The main function in main.rs is marked with #[tokio::main].'
+    type: text_check
+    file: docs/scripts/src/main.rs
+    assertion: contains_string
+    value: '#[tokio::main]'
+  testFile: null
+- id: FINAL-2-implement-hasher
+  label: 'Integration: Implement a file hashing utility'
+  goal: Create a utility function that can take a file path, read the file, and return its SHA-256 hash. This is a core component of the versioning system.
+  status: pending
+  needs:
+  - FINAL-1-add-deps
+  contextFiles: null
+  contextQuery:
+    prompt: Create a new module `utils.rs`. Inside it, create a public function `calculate_file_hash` that takes a `&Path` as an argument. This function should read the file's bytes and use the `sha2` crate to compute and return a hex string representation of the SHA-256 hash. Ensure this new module is declared in `main.rs`.
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - description: A new 'utils.rs' file exists in the src directory.
+    type: file_exists
+    file: docs/scripts/src/utils.rs
+    assertion: null
+    value: null
+  - description: utils.rs contains a function named 'calculate_file_hash'.
+    type: text_check
+    file: docs/scripts/src/utils.rs
+    assertion: contains_string
+    value: pub fn calculate_file_hash
+  - description: The `sha2` crate is used within utils.rs.
+    type: text_check
+    file: docs/scripts/src/utils.rs
+    assertion: contains_string
+    value: use sha2::{Sha256, Digest};
+  - description: main.rs declares the 'utils' module.
+    type: text_check
+    file: docs/scripts/src/main.rs
+    assertion: contains_string
+    value: mod utils;
+  testFile: null
+- id: FINAL-3-integrate-versioning
+  label: 'Integration: Create version snapshot on ''conclude'''
+  goal: Enhance the 'conclude' command to trigger the creation of a new version snapshot in the database, capturing the state of all project files.
+  status: pending
+  needs:
+  - FINAL-2-implement-hasher
+  contextFiles: null
+  contextQuery:
+    prompt: 'Modify `conclude.rs`. After successfully updating the task status, it should: 1. Scan the entire project directory (excluding .git, target, etc.). 2. For each file, use the new `utils::calculate_file_hash` to get its hash. 3. Collect this into a `Vec<ScannedFileInfo>`. 4. Populate a `SnapshotRequest` object. 5. Call the `versioning::create_project_snapshot` function to save the version to the database.'
+    tokenBudget: 4000
+  acceptanceCriteria:
+  - description: conclude.rs calls the `create_project_snapshot` function.
+    type: text_check
+    file: docs/scripts/src/conclude.rs
+    assertion: contains_string
+    value: versioning::create_project_snapshot
+  - description: conclude.rs uses the file hashing utility.
+    type: text_check
+    file: docs/scripts/src/conclude.rs
+    assertion: contains_string
+    value: utils::calculate_file_hash
+  - description: The 'walkdir' crate is added as a dependency to help with directory traversal.
+    type: text_check
+    file: docs/scripts/Cargo.toml
+    assertion: contains_string
+    value: walkdir =
+  testFile: null
+- id: FINAL-4-prepare-for-treesitter
+  label: 'Integration: Prepare Sketch module for Tree-sitter'
+  goal: Update the placeholder `sketch.rs` module to include the necessary structures and function signatures for a future Tree-sitter implementation, completing the conceptual extraction from `diranalyze`.
+  status: pending
+  needs:
+  - FINAL-3-integrate-versioning
+  contextFiles: null
+  contextQuery:
+    prompt: In `sketch.rs`, add placeholder structs for `SymbolGraph` and `CodeSymbol`. Modify the `generate_context_package` function signature to accept a reference to the `&AppState`. Add placeholder comments outlining where `tree-sitter` would be used to parse files and build the symbol graph.
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - description: sketch.rs contains a placeholder struct named 'SymbolGraph'.
+    type: text_check
+    file: docs/scripts/src/sketch.rs
+    assertion: contains_string
+    value: pub struct SymbolGraph
+  - description: sketch.rs contains a placeholder struct named 'CodeSymbol'.
+    type: text_check
+    file: docs/scripts/src/sketch.rs
+    assertion: contains_string
+    value: pub struct CodeSymbol
+  - description: The `generate_context_package` function signature now accepts `&AppState`.
+    type: text_check
+    file: docs/scripts/src/sketch.rs
+    assertion: contains_string
+    value: 'state: &AppState'
+  testFile: null

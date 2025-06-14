@@ -1,4 +1,5 @@
 // CORRECT AND FINAL FILE: docs/scripts/src/main.rs
+// THIS VERSION FIXES THE ASYNC/AWAIT MISMATCH.
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
@@ -10,24 +11,28 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 mod api_client;
+mod conclude;
 mod context;
 mod db;
 mod governor;
 mod loader;
 mod model;
 mod next;
+mod reflect;
 mod sketch;
 mod verifier;
 mod versioning;
 
+// Top-level CLI structure for direct invocation from the shell
 #[derive(Parser, Debug)]
 #[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
-struct Cli {
+struct BrainCli {
     #[command(subcommand)]
     command: Option<Commands>,
 }
 
-#[derive(Parser, Debug)]
+// Subcommands are shared
+#[derive(Parser, Debug, Clone)]
 enum Commands {
     #[command(alias = "c")]
     Context { task_id: String },
@@ -35,41 +40,68 @@ enum Commands {
     Verify { task_id: String },
     #[command(alias = "n")]
     Next,
+    #[command(alias = "r")]
+    Reflect { task_id: String },
+    #[command(alias = "d", visible_alias = "done")]
+    Conclude { task_id: String },
     #[command(alias = "p")]
     Prompt { role: String },
     Configure,
 }
+
+// A separate parser for the REPL that doesn't expect a binary name
+#[derive(Parser, Debug)]
+#[command(no_binary_name = true, about = "REPL commands")]
+struct ReplCli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
 
 pub struct AppState {
     project_root: PathBuf,
     db_conn: Arc<Mutex<Connection>>,
 }
 
-fn main() -> Result<()> {
-    let cli = Cli::parse();
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = BrainCli::try_parse();
+
     let app_state = AppState::new()?;
 
-    match cli.command {
-        Some(command) => {
-            let result = run_command(&app_state, command);
-            if let Err(e) = result {
-                eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
-                std::process::exit(1);
+    match cli {
+        Ok(parsed_cli) => {
+            if let Some(command) = parsed_cli.command {
+                let result = run_command(&app_state, command).await;
+                if let Err(e) = result {
+                    eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
+                    std::process::exit(1);
+                }
+            } else {
+                run_repl(&app_state).await?;
             }
         }
-        None => {
-            run_repl(&app_state)?;
+        Err(_) => {
+            run_repl(&app_state).await?;
         }
     }
+
 
     Ok(())
 }
 
-fn run_command(state: &AppState, command: Commands) -> Result<()> {
+async fn run_command(state: &AppState, command: Commands) -> Result<()> {
     match command {
+        // These are synchronous and do not need .await
         Commands::Context { task_id } => context::run(state, &task_id),
         Commands::Verify { task_id } => verifier::run(state, &task_id),
         Commands::Next => next::run(state),
+        Commands::Conclude { task_id } => conclude::run(state, &task_id),
+        
+        // This is now correctly async and needs .await
+        Commands::Reflect { task_id } => reflect::run(state, &task_id).await,
+
+        // These are placeholders and currently sync
         Commands::Configure => {
             println!("// TODO: Implement 'configure' command logic.");
             Ok(())
@@ -89,7 +121,7 @@ fn display_status_bar() -> Result<()> {
     Ok(())
 }
 
-fn run_repl(state: &AppState) -> Result<()> {
+async fn run_repl(state: &AppState) -> Result<()> {
     println!("Welcome to the BRAIN interactive shell. Type 'exit' to quit.");
     let mut rl = DefaultEditor::new()?;
 
@@ -102,12 +134,12 @@ fn run_repl(state: &AppState) -> Result<()> {
                 for task in tasks {
                     println!("- [{}] {}", task.id, task.label);
                 }
-                println!("\nCommands: [c]ontext <id>, [v]erify <id>, [conf]igure, [e]xit");
+                println!("\nCommands: context <id>, verify <id>, done <id>, reflect <id>, next, exit");
             }
             _ => {
                 println!("\n--- No Active Task ---");
                 println!("All tasks are completed or blocked.");
-                println!("\nCommands: [N]ew Task (not implemented), [conf]igure, [e]xit");
+                println!("\nCommands: reflect <id>, new (not implemented), exit");
             }
         }
 
@@ -124,15 +156,10 @@ fn run_repl(state: &AppState) -> Result<()> {
                     continue;
                 }
 
-                let clap_args =
-                    ["brain-cli"].iter().map(|s| *s).chain(args.iter().map(|s| s.as_str()));
-
-                match Cli::try_parse_from(clap_args) {
+                match ReplCli::try_parse_from(args) {
                     Ok(cli) => {
-                        if let Some(command) = cli.command {
-                            if let Err(e) = run_command(state, command) {
-                                eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
-                            }
+                        if let Err(e) = run_command(state, cli.command).await {
+                            eprintln!("\x1b[31mError: {:?}\x1b[0m", e);
                         }
                     }
                     Err(e) => {
@@ -155,11 +182,10 @@ fn run_repl(state: &AppState) -> Result<()> {
 impl AppState {
     fn new() -> Result<Self> {
         let current_dir = env::current_dir()?;
-        let project_root = find_project_root(¤t_dir).ok_or_else(|| {
+        let project_root = find_project_root(&current_dir).ok_or_else(|| {
             anyhow!("Cannot find project root containing BRAIN.md from the current directory.")
         })?;
 
-        // Open and initialize the database
         let conn = db::open_db_connection(project_root)?;
         db::initialize_database(&conn)?;
 
