@@ -139,8 +139,9 @@ This is the exact, repeatable procedure for executing any work within the protoc
     -   The Product Owner reviews this plan and appends it to `tasks.yaml`. This new plan is committed to the repository.
 
 2.  **IDENTIFY (Get Orders):**
-    -   The user runs `brain-cli next` (or `n`).
+    -   The user runs `brain-cli next` (or `next` within the REPL).
     -   The tool reads `tasks.yaml`, calculates dependencies, and reports the ID of the next unblocked, pending task.
+    -   **If `next` reports "No available tasks. All tasks are either completed or blocked.":** This signals the end of the current operational plan. The protocol dictates a return to **Step 1: PLAN (Strategic Dialogue)**. The Product Owner should now provide a new high-level goal or strategic objective to the Architect AI to generate the next set of tasks. If no new high-level goal is immediately available, the Architect AI should be prompted to review the project's overall mission (from `BRAIN.md` Section A) and the existing `ROADMAP.md` (if available, or create one if not) to propose a logical next set of high-level objectives or epics for the Product Owner's approval and subsequent decomposition.
 
 3.  **BRIEF (Assemble Mission Package):**
     -   The user runs `brain-cli prompt coder` (or `p coder`) to get the correct persona for the implementation AI.

@@ -92,17 +92,17 @@ tasks:
     prompt: In `sketch.rs`, add placeholder structs for `SymbolGraph` and `CodeSymbol`. Modify the `generate_context_package` function signature to accept a reference to the `&AppState`. Add placeholder comments outlining where `tree-sitter` would be used to parse files and build the symbol graph.
     tokenBudget: 3000
   acceptanceCriteria:
-  - description: "sketch.rs contains a placeholder struct named 'SymbolGraph'." # VERIFIED THIS IS CORRECT
+  - description: "sketch.rs contains a placeholder struct named 'SymbolGraph'."
     type: "text_check"
     file: "docs/scripts/src/sketch.rs"
     assertion: "contains_string"
     value: "pub struct SymbolGraph"
-  - description: "sketch.rs contains a placeholder struct named 'CodeSymbol'." # VERIFIED THIS IS CORRECT
+  - description: "sketch.rs contains a placeholder struct named 'CodeSymbol'."
     type: "text_check"
     file: "docs/scripts/src/sketch.rs"
     assertion: "contains_string"
     value: "pub struct CodeSymbol"
-  - description: "The `generate_context_package` function signature now accepts `&AppState`." # VERIFIED THIS IS CORRECT AND HAS DESCRIPTION
+  - description: "The `generate_context_package` function signature now accepts `&AppState`." # THIS IS THE CRITERION THAT WAS MISSING THE DESCRIPTION
     type: "text_check"
     file: "docs/scripts/src/sketch.rs"
     assertion: "contains_string"
