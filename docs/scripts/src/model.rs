@@ -9,7 +9,7 @@ pub struct TaskGraph {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")] // FIX: This correctly handles all camelCase fields.
+#[serde(rename_all = "camelCase")] // This correctly handles all camelCase fields.
 pub struct Task {
     pub id: String,
     pub label: String,
@@ -18,9 +18,20 @@ pub struct Task {
     pub status: String,
     pub needs: Vec<String>,
     #[serde(default)]
-    pub context_files: Option<Vec<String>>,
+    pub context_files: Option<Vec<String>>, // Deprecated, but kept for backward compatibility.
+    #[serde(default)]
+    pub context_query: Option<ContextQuery>, // The new way to specify context.
     #[serde(default)]
     pub acceptance_criteria: Option<Vec<AcceptanceCriterion>>,
+    #[serde(default)]
+    pub test_file: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextQuery {
+    pub prompt: String,
+    pub token_budget: u32,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

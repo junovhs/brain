@@ -24,6 +24,7 @@ tasks:
       - "src/index.html"
       - "src/main.js"
       - "src/styles.css"
+    testFile: "src/main.test.js" # Path to the test file for the QA agent.
     acceptanceCriteria:
       - description: "The login button HTML element exists in index.html."
         type: "text_check"

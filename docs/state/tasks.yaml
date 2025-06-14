@@ -124,7 +124,7 @@ tasks:
   - id: "G1.1-implement-qa-agent-flow"
     label: "Integrate QA Agent into Protocol"
     goal: "Modify the brain-cli tool and protocol to support a dedicated QA Agent step. This involves creating a test file alongside every feature file."
-    status: "pending"
+    status: "completed"
     needs: ["F1.4-implement-gui-gauge"] # Depends on the shell being mostly complete
     acceptanceCriteria:
       - description: "The 'verify' command now includes a step to run 'cargo test'."
@@ -138,11 +138,37 @@ tasks:
         assertion: "contains_string"
         value: "testFile:"
 
+  - id: "G1.1.1-refactor-context-engine"
+    label: "Refactor: Cannibalize diranalyze for intelligent context"
+    goal: "Incorporate the database, versioning, and semantic sketch concepts from the 'diranalyze' project into the brain-cli to enable intelligent, token-budgeted context generation."
+    status: "completed"
+    needs: ["G1.1-implement-qa-agent-flow"]
+    acceptanceCriteria:
+      - description: "The CLI has a dependency on 'rusqlite' and 'chrono' for database operations."
+        type: "text_check"
+        file: "docs/scripts/Cargo.toml"
+        assertion: "contains_string"
+        value: "rusqlite"
+      - description: "A 'db.rs' module exists for managing the SQLite connection and schema."
+        type: "file_exists"
+        file: "docs/scripts/src/db.rs"
+      - description: "A 'sketch.rs' module exists to serve as the new intelligent context builder."
+        type: "file_exists"
+        file: "docs/scripts/src/sketch.rs"
+      - description: "The Task model in 'model.rs' now includes a 'contextQuery' struct."
+        type: "text_check"
+        file: "docs/scripts/src/model.rs"
+        assertion: "contains_string"
+        value: "pub context_query: Option<ContextQuery>"
+
   - id: "G1.2-implement-reflector-flow"
     label: "Automate ADR/History Generation"
     goal: "Create a 'brain-cli reflect <task_id>' command that auto-generates a historical debrief of a completed task."
     status: "pending"
-    needs: ["G1.1-implement-qa-agent-flow"]
+    needs: ["G1.1.1-refactor-context-engine"]
+    contextQuery:
+      prompt: "The user wants to create a new 'reflect' command in the CLI. This involves creating a 'reflect.rs' module, adding it to main.rs, and adding a 'Reflect' variant to the 'Commands' enum. The new command should take a 'task_id' as an argument."
+      tokenBudget: 4000
     acceptanceCriteria:
       - description: "A new 'reflect.rs' module is added to the brain-cli."
         type: "file_exists"

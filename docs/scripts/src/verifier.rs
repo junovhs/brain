@@ -3,9 +3,10 @@
 use crate::loader::load_task_graph;
 use crate::model::AcceptanceCriterion;
 use crate::AppState;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use std::fs;
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 pub fn run(state: &AppState, task_id: &str) -> Result<()> {
     let task_graph = load_task_graph(&state.project_root)?;
@@ -52,9 +53,32 @@ pub fn run(state: &AppState, task_id: &str) -> Result<()> {
 
     if !all_checks_passed {
         anyhow::bail!("One or more acceptance criteria failed.");
-    } else {
-        println!("\nAll checks passed!");
     }
+
+    // --- START: G1.1 - Run Integration Tests ---
+    println!("\nAll criteria checks passed. Proceeding to integration tests...");
+    println!("- Checking: `cargo test` executes successfully.");
+
+    let scripts_dir = state.project_root.join("docs/scripts");
+    let output = Command::new("cargo")
+        .arg("test")
+        .current_dir(&scripts_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .with_context(|| format!("Failed to execute 'cargo test' in {:?}", scripts_dir))?;
+
+    if !output.status.success() {
+        println!("  \x1b[31mFAIL: `cargo test` did not pass.\x1b[0m");
+        println!("\n--- `cargo test` STDOUT ---\n{}", String::from_utf8_lossy(&output.stdout));
+        println!("\n--- `cargo test` STDERR ---\n{}", String::from_utf8_lossy(&output.stderr));
+        anyhow::bail!("`cargo test` failed. Verification failed.");
+    }
+    
+    println!("  \x1b[32mPASS\x1b[0m");
+    // --- END: G1.1 - Run Integration Tests ---
+
+    println!("\nAll checks passed!");
 
     Ok(())
 }
@@ -76,15 +100,12 @@ fn check_file_exists(path: &Path) -> Result<bool> {
     Ok(path.exists())
 }
 
-// --- START: Refactored text check logic ---
 fn check_text(path: &Path, assertion: &Option<String>, value: &Option<String>) -> Result<bool> {
     let value_to_check = value.as_deref().ok_or_else(|| {
         anyhow!("'text_check' for file {:?} requires a 'value' field.", path)
     })?;
 
     if !path.exists() {
-        // If the file doesn't exist, it can't contain the text.
-        // For a "not_contains" check, this should be a PASS.
         return Ok(assertion.as_deref() == Some("not_contains_string"));
     }
 
@@ -92,12 +113,11 @@ fn check_text(path: &Path, assertion: &Option<String>, value: &Option<String>) -
     let contains_value = content.contains(value_to_check);
 
     match assertion.as_deref() {
-        Some("not_contains_string") => Ok(!contains_value), // Pass if it does NOT contain.
-        Some("contains_string") | None => Ok(contains_value), // Default to contains_string.
+        Some("not_contains_string") => Ok(!contains_value),
+        Some("contains_string") | None => Ok(contains_value),
         Some(other) => {
             println!("  \x1b[33mSKIPPED (unknown assertion type: '{}')\x1b[0m", other);
             Ok(true)
         }
     }
 }
-// --- END: Refactored text check logic ---

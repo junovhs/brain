@@ -2,18 +2,23 @@
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use rusqlite::Connection;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 mod api_client;
 mod context;
+mod db;
 mod governor;
 mod loader;
 mod model;
 mod next;
+mod sketch;
 mod verifier;
+mod versioning;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
@@ -37,6 +42,7 @@ enum Commands {
 
 pub struct AppState {
     project_root: PathBuf,
+    db_conn: Arc<Mutex<Connection>>,
 }
 
 fn main() -> Result<()> {
@@ -118,7 +124,8 @@ fn run_repl(state: &AppState) -> Result<()> {
                     continue;
                 }
 
-                let clap_args = ["brain-cli"].iter().map(|s| *s).chain(args.iter().map(|s| s.as_str()));
+                let clap_args =
+                    ["brain-cli"].iter().map(|s| *s).chain(args.iter().map(|s| s.as_str()));
 
                 match Cli::try_parse_from(clap_args) {
                     Ok(cli) => {
@@ -148,11 +155,17 @@ fn run_repl(state: &AppState) -> Result<()> {
 impl AppState {
     fn new() -> Result<Self> {
         let current_dir = env::current_dir()?;
-        let project_root = find_project_root(&current_dir).ok_or_else(|| {
+        let project_root = find_project_root(¤t_dir).ok_or_else(|| {
             anyhow!("Cannot find project root containing BRAIN.md from the current directory.")
         })?;
+
+        // Open and initialize the database
+        let conn = db::open_db_connection(project_root)?;
+        db::initialize_database(&conn)?;
+
         Ok(AppState {
             project_root: project_root.to_path_buf(),
+            db_conn: Arc::new(Mutex::new(conn)),
         })
     }
 }
