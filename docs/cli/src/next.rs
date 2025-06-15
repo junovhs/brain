@@ -1,5 +1,4 @@
-// CORRECTED FILE: docs/scripts/src/next.rs
-
+// File: docs/cli/src/next.rs
 use crate::loader::load_task_graph;
 use crate::model::Task;
 use crate::AppState;
@@ -31,17 +30,18 @@ pub fn get_next_tasks(state: &AppState) -> Result<Vec<Task>> {
         .map(|t| t.id.as_str())
         .collect();
 
-    // Find tasks that are 'pending' and whose dependencies are all met.
+    // Find tasks that are 'pending' or 'todo' and whose dependencies are all met.
     let available_tasks: Vec<Task> = graph
         .tasks
-        .iter() // <-- THE FIX: Use .iter() to borrow, not .into_iter() to move.
+        .iter()
         .filter(|task| {
-            if task.status != "pending" {
+            // THE FIX: Accept both "pending" and "todo" as valid startable statuses.
+            if task.status != "pending" && task.status != "todo" {
                 return false;
             }
             task.needs.iter().all(|dep_id| completed_ids.contains(dep_id.as_str()))
         })
-        .cloned() // Since we are borrowing, we need to .clone() the tasks to create a new Vec.
+        .cloned()
         .collect();
 
     Ok(available_tasks)

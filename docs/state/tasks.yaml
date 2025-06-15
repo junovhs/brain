@@ -1,443 +1,521 @@
 version: 4
-#  ╔═══════════════════════════════════════════════════════════════════════╗
-#  ║  BRAIN Protocol · Phase-II Sprint “HARDEN & SCALE” (Task Graph)       ║
-#  ║  Scope: from today’s MVP  ➜  enterprise-grade, audit-ready CLI       ║
-#  ╚═══════════════════════════════════════════════════════════════════════╝
-
-# THE FIX: ALL acceptanceCriteria have been converted from flow-style {...}
-# to the more robust block-style YAML to prevent all parsing errors.
-
-# ──────────────────────────────────────────────────────────────────────────
-#  0 · PREP & HOUSEKEEPING
-# ──────────────────────────────────────────────────────────────────────────
 tasks:
 - id: PREP-01-repo-clean
-  label: "Repo: Archive legacy prompts & create .brainignore"
+  label: 'Repo: Archive legacy prompts & create .brainignore'
   goal: Move outdated persona prompts to docs/legacy_prompts/ and add .brainignore (target/, *.tmp, *.sqlite3.bak)
-  status: todo
+  status: completed
   needs: []
-  contextQuery: {prompt: "git mv docs/prompts/* docs/legacy_prompts/", tokenBudget: 1200}
+  contextFiles: null
+  contextQuery:
+    prompt: git mv docs/prompts/* docs/legacy_prompts/
+    tokenBudget: 1200
   acceptanceCriteria:
-    - description: ".brainignore exists"
-      type: "file_exists"
-      file: ".brainignore"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  1 · STORAGE & INTEGRITY
-# ──────────────────────────────────────────────────────────────────────────
+  - description: .brainignore exists
+    type: file_exists
+    file: .brainignore
+    assertion: null
+    value: null
+  testFile: null
 - id: STOR-01-sqlcipher
-  label: "DB: Encrypt .brain_db with SQLCipher (Law L1)"
+  label: 'DB: Encrypt .brain_db with SQLCipher (Law L1)'
   goal: Derive key via Argon2id, store master secret in OS keychain.
   status: todo
-  needs: [PREP-01-repo-clean]
-  contextQuery: {prompt: "Implement SQLCipher + Argon2id", tokenBudget: 4000}
+  needs:
+  - PREP-01-repo-clean
+  contextFiles: null
+  contextQuery:
+    prompt: Implement SQLCipher + Argon2id
+    tokenBudget: 4000
   acceptanceCriteria:
-    - description: "PRAGMA key"
-      type: "text_check"
-      file: "docs/scripts/src/db.rs"
-      assertion: "contains_string"
-      value: "PRAGMA key"
-
+  - description: PRAGMA key
+    type: text_check
+    file: docs/scripts/src/db.rs
+    assertion: contains_string
+    value: PRAGMA key
+  testFile: null
 - id: STOR-02-wal-checksum
-  label: "tasks.yaml: tempfile+rename + SHA-256 manifest"
+  label: 'tasks.yaml: tempfile+rename + SHA-256 manifest'
   goal: Write tasks.yaml atomically and record checksum in .brain/manifest.json.
   status: todo
-  needs: [STOR-01-sqlcipher]
-  contextQuery: {prompt: "tempfile write then rename; update manifest.json", tokenBudget: 2500}
-  acceptanceCriteria:
-    - description: "manifest.json updated"
-      type: "file_exists"
-      file: ".brain/manifest.json"
-
-- id: STOR-03-audit-hashchain
-  label: "AuditLogger: hash-chained JSONL (Law L2)"
-  goal: Implement prev_hash + hash; abort on IO error.
-  status: todo
-  needs: [STOR-02-wal-checksum]
-  contextQuery: {prompt: "audit_logger.rs hash chain", tokenBudget: 3500}
-  acceptanceCriteria:
-    - description: "prev_hash"
-      type: "text_check"
-      file: "docs/scripts/src/audit_logger.rs"
-      assertion: "contains_string"
-      value: "prev_hash"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  2 · OBSERVABILITY & COST
-# ──────────────────────────────────────────────────────────────────────────
-- id: OBS-01-otel-core
-  label: "OTel: root span + LLM spans (Law L3)"
-  goal: Add opentelemetry, architect_chat, coder_chat, verifier spans.
-  status: todo
-  needs: [STOR-03-audit-hashchain]
-  contextQuery: {prompt: "insert span!() in architect.rs coder.rs", tokenBudget: 4000}
-  acceptanceCriteria:
-    - description: "brain_cli.command span"
-      type: "text_check"
-      file: "docs/scripts/src/main.rs"
-      assertion: "contains_string"
-      value: "span!("
-
-- id: OBS-02-otel-exporter
-  label: "OTel: OTLP exporter + Jaeger docker compose"
-  goal: Ship spans to localhost:4317; provide docs/docker-compose-jaeger.yml.
-  status: todo
-  needs: [OBS-01-otel-core]
-  contextQuery: {prompt: "configure OTLP grpc exporter", tokenBudget: 2500}
-  acceptanceCriteria:
-    - description: "docker-compose-jaeger.yml exists"
-      type: "file_exists"
-      file: "docs/docker-compose-jaeger.yml"
-
-- id: COST-01-resource-governor
-  label: "Cost: ResourceGovernor + --max-usd"
-  goal: Pre-estimate tokens, ledger CSV, deny if budget exceeded.
-  status: todo
-  needs: [OBS-02-otel-exporter]
-  contextQuery: {prompt: "resource_governor.rs approve(cost)", tokenBudget: 3000}
-  acceptanceCriteria:
-    - description: "cost_ledger.csv"
-      type: "file_exists"
-      file: ".brain/cost_ledger.csv"
-
-- id: COST-02-weekly-regression
-  label: "CI: GitHub Action weekly cost regression"
-  goal: Run benchmark scripts, fail if avg feature cost > $0.45.
-  status: todo
-  needs: [COST-01-resource-governor]
-  contextQuery: {prompt: "create .github/workflows/cost_reg.yml", tokenBudget: 2200}
-  acceptanceCriteria:
-    - description: "cost_reg.yml exists"
-      type: "file_exists"
-      file: ".github/workflows/cost_reg.yml"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  3 · SECURITY
-# ──────────────────────────────────────────────────────────────────────────
-- id: SEC-01-sandbox
-  label: "Verifier: WASM sandbox (Wasmtime)"
-  goal: Compile generated tests to WASM; cap mem & time; no network.
-  status: todo
-  needs: [COST-01-resource-governor]
-  contextQuery: {prompt: "sandbox.rs with Wasmtime config", tokenBudget: 4500}
-  acceptanceCriteria:
-    - description: "wasmtime::Engine"
-      type: "text_check"
-      file: "docs/scripts/src/sandbox.rs"
-      assertion: "contains_string"
-      value: "wasmtime::Engine"
-
-- id: SEC-02-api-key-vault
-  label: "SecureVault: cross-platform OS keychain wrapper"
-  goal: macOS Keychain, wincred, libsecret; fallback encrypted JSON.
-  status: todo
-  needs: [SEC-01-sandbox]
-  contextQuery: {prompt: "keyring crate integration", tokenBudget: 3500}
-  acceptanceCriteria:
-    - description: "keyring::Entry"
-      type: "text_check"
-      file: "docs/scripts/src/secure_vault.rs"
-      assertion: "contains_string"
-      value: "keyring::Entry"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  4 · QUALITY & REFLECTION
-# ──────────────────────────────────────────────────────────────────────────
-- id: QUAL-01-self-refine
-  label: "Self-Refine loop (Law L9)"
-  goal: After LLM draft >50 lines or tasks>5, run critic + refiner.
-  status: todo
-  needs: [SEC-01-sandbox]
-  contextQuery: {prompt: "critique_prompt + refiner_prompt", tokenBudget: 4000}
-  acceptanceCriteria:
-    - description: "fn self_refine"
-      type: "text_check"
-      file: "docs/scripts/src/self_refine.rs"
-      assertion: "contains_string"
-      value: "self_refine"
-
-- id: QUAL-02-thinker-talker
-  label: "Thinker-Talker pattern for tool plans"
-  goal: Hidden chain-of-thought, public short rationale for multi-tool tasks.
-  status: todo
-  needs: [QUAL-01-self-refine]
-  contextQuery: {prompt: "implement thinker_talker.rs", tokenBudget: 3000}
-  acceptanceCriteria:
-    - description: "ThinkerTalker struct"
-      type: "text_check"
-      file: "docs/scripts/src/thinker_talker.rs"
-      assertion: "contains_string"
-      value: "struct ThinkerTalker"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  5 · CONTEXT ENGINE
-# ──────────────────────────────────────────────────────────────────────────
-- id: CTX-01-tree-sitter
-  label: "sketch.rs: integrate Tree-sitter Rust parser"
-  goal: Build SymbolGraph, extract top-relevant funcs for context.
-  status: todo
-  needs: [QUAL-01-self-refine]
-  contextQuery: {prompt: "use tree_sitter crates", tokenBudget: 4500}
-  acceptanceCriteria:
-    - description: "extern crate tree_sitter"
-      type: "text_check"
-      file: "docs/scripts/src/sketch.rs"
-      assertion: "contains_string"
-      value: "tree_sitter"
-
-- id: CTX-02-embedding-fallback
-  label: "Fallback: cheap embeddings search when Tree-sitter over budget"
-  goal: Use on-disk embeddings (all-MiniLM) for top-k snippet retrieval.
-  status: todo
-  needs: [CTX-01-tree-sitter]
-  contextQuery: {prompt: "embedding_store.rs", tokenBudget: 4000}
-  acceptanceCriteria:
-    - description: "sentence_transformers"
-      type: "text_check"
-      file: "docs/scripts/Cargo.toml"
-      assertion: "contains_string"
-      value: "sentence-transformers"
-
-- id: CTX-03-sketch-invoke
-  label: "brain sketch: expose sketch.rs via CLI"
-  goal: New subcommand prints JSON bundle for a given task ID.
-  status: todo
-  needs: [CTX-01-tree-sitter]
+  needs:
+  - STOR-01-sqlcipher
+  contextFiles: null
   contextQuery:
-    prompt: "add cmd brain sketch <task_id> that returns context JSON"
+    prompt: tempfile write then rename; update manifest.json
     tokenBudget: 2500
   acceptanceCriteria:
-    - description: "fn build_context_bundle("
-      type: "text_check"
-      file: "docs/scripts/src/sketch.rs"
-      assertion: "contains_string"
-      value: "build_context_bundle"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  6 · LDST & REFLECTION HEALTH
-# ──────────────────────────────────────────────────────────────────────────
-- id: REFL-01-ldst-runner
-  label: "CLI: brain ldst (auto-answer)"
-  goal: Parse ldst_v0.md → answer Qs → gap log → score.
+  - description: manifest.json updated
+    type: file_exists
+    file: .brain/manifest.json
+    assertion: null
+    value: null
+  testFile: null
+- id: STOR-03-audit-hashchain
+  label: 'AuditLogger: hash-chained JSONL (Law L2)'
+  goal: Implement prev_hash + hash; abort on IO error.
   status: todo
-  needs: [QUAL-01-self-refine]
-  contextQuery: {prompt: "ldst_runner.rs", tokenBudget: 4500}
-  acceptanceCriteria:
-    - description: "ldst_gap_log.md exists"
-      type: "file_exists"
-      file: "docs/reflection_qa/ldst_gap_log.md"
-
-- id: REFL-02-ldst-calibrate
-  label: "CLI: brain ldst-calibrate"
-  goal: Run auto-answer twice; ensure score ≥80 %; fail otherwise.
-  status: todo
-  needs: [REFL-01-ldst-runner]
-  contextQuery: {prompt: "ldst_calibrate.rs", tokenBudget: 3500}
-  acceptanceCriteria:
-    - description: "CALIBRATION PASS"
-      type: "text_check"
-      file: "docs/scripts/src/ldst_calibrate.rs"
-      assertion: "contains_string"
-      value: "CALIBRATION PASS"
-
-- id: REFL-03-decay-monitor
-  label: "tool: reflection_decay_monitor"
-  goal: Compare verify failure rates w/ reflection off vs on; log report.
-  status: todo
-  needs: [QUAL-01-self-refine]
-  contextQuery: {prompt: "decay_monitor.rs", tokenBudget: 4000}
-  acceptanceCriteria:
-    - description: "decay_report"
-      type: "file_exists"
-      file: "docs/reflection_qa/decay_report_latest.md"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  7 · CLI & UX SAFETY
-# ──────────────────────────────────────────────────────────────────────────
-- id: UX-01-graceful-shutdown
-  label: "SIGINT/SIGTERM handler flush logs & atomic writes (Law L11)"
-  goal: Create shutdown_manager.rs; register with ctrlc crate.
-  status: todo
-  needs: [STOR-03-audit-hashchain]
-  contextQuery: {prompt: "shutdown_manager.rs", tokenBudget: 3000}
-  acceptanceCriteria:
-    - description: "CtrlC handler"
-      type: "text_check"
-      file: "docs/scripts/src/shutdown_manager.rs"
-      assertion: "contains_string"
-      value: "ctrlc::set_handler"
-
-- id: UX-02-dev-unsafe-flag
-  label: "Flag: --dev-log-unsafe-io persistent banner"
-  goal: When env var or flag set, log raw I/O in *-unsafe.jsonl and print red banner.
-  status: todo
-  needs: [UX-01-graceful-shutdown]
-  contextQuery: {prompt: "implement flag parse + banner", tokenBudget: 2500}
-  acceptanceCriteria:
-    - description: "red\u001b[31m"
-      type: "text_check"
-      file: "docs/scripts/src/main.rs"
-      assertion: "contains_string"
-      value: "red banner"
-
-- id: UX-03-chat-task
-  label: "CLI: brain chat-task <ID> (UPE call + temp branch)"
-  goal: 1) Call sketch bundle 2) Start UPE chat 3) write files to /tmp/<branch>
-  status: todo
-  needs: [CTX-03-sketch-invoke, QUAL-01-self-refine]
+  needs:
+  - STOR-02-wal-checksum
+  contextFiles: null
   contextQuery:
-    prompt: "implement chat_task.rs; use reqwest to call OpenAI; save output"
+    prompt: audit_logger.rs hash chain
+    tokenBudget: 3500
+  acceptanceCriteria:
+  - description: prev_hash
+    type: text_check
+    file: docs/scripts/src/audit_logger.rs
+    assertion: contains_string
+    value: prev_hash
+  testFile: null
+- id: OBS-01-otel-core
+  label: 'OTel: root span + LLM spans (Law L3)'
+  goal: Add opentelemetry, architect_chat, coder_chat, verifier spans.
+  status: todo
+  needs:
+  - STOR-03-audit-hashchain
+  contextFiles: null
+  contextQuery:
+    prompt: insert span!() in architect.rs coder.rs
+    tokenBudget: 4000
+  acceptanceCriteria:
+  - description: brain_cli.command span
+    type: text_check
+    file: docs/scripts/src/main.rs
+    assertion: contains_string
+    value: span!(
+  testFile: null
+- id: OBS-02-otel-exporter
+  label: 'OTel: OTLP exporter + Jaeger docker compose'
+  goal: Ship spans to localhost:4317; provide docs/docker-compose-jaeger.yml.
+  status: todo
+  needs:
+  - OBS-01-otel-core
+  contextFiles: null
+  contextQuery:
+    prompt: configure OTLP grpc exporter
+    tokenBudget: 2500
+  acceptanceCriteria:
+  - description: docker-compose-jaeger.yml exists
+    type: file_exists
+    file: docs/docker-compose-jaeger.yml
+    assertion: null
+    value: null
+  testFile: null
+- id: COST-01-resource-governor
+  label: 'Cost: ResourceGovernor + --max-usd'
+  goal: Pre-estimate tokens, ledger CSV, deny if budget exceeded.
+  status: todo
+  needs:
+  - OBS-02-otel-exporter
+  contextFiles: null
+  contextQuery:
+    prompt: resource_governor.rs approve(cost)
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - description: cost_ledger.csv
+    type: file_exists
+    file: .brain/cost_ledger.csv
+    assertion: null
+    value: null
+  testFile: null
+- id: COST-02-weekly-regression
+  label: 'CI: GitHub Action weekly cost regression'
+  goal: Run benchmark scripts, fail if avg feature cost > $0.45.
+  status: todo
+  needs:
+  - COST-01-resource-governor
+  contextFiles: null
+  contextQuery:
+    prompt: create .github/workflows/cost_reg.yml
+    tokenBudget: 2200
+  acceptanceCriteria:
+  - description: cost_reg.yml exists
+    type: file_exists
+    file: .github/workflows/cost_reg.yml
+    assertion: null
+    value: null
+  testFile: null
+- id: SEC-01-sandbox
+  label: 'Verifier: WASM sandbox (Wasmtime)'
+  goal: Compile generated tests to WASM; cap mem & time; no network.
+  status: todo
+  needs:
+  - COST-01-resource-governor
+  contextFiles: null
+  contextQuery:
+    prompt: sandbox.rs with Wasmtime config
     tokenBudget: 4500
   acceptanceCriteria:
-    - description: "chat_task.rs exists"
-      type: "file_exists"
-      file: "docs/scripts/src/chat_task.rs"
-
-- id: UX-04-wire-brain-next
-  label: "brain next: invoke chat-task then verify"
-  goal: Modify orchestrator so 'brain next' runs chat-task on first OPEN task,
-        then verifier; on PASS, merge temp branch.
+  - description: wasmtime::Engine
+    type: text_check
+    file: docs/scripts/src/sandbox.rs
+    assertion: contains_string
+    value: wasmtime::Engine
+  testFile: null
+- id: SEC-02-api-key-vault
+  label: 'SecureVault: cross-platform OS keychain wrapper'
+  goal: macOS Keychain, wincred, libsecret; fallback encrypted JSON.
   status: todo
-  needs: [UX-03-chat-task]
+  needs:
+  - SEC-01-sandbox
+  contextFiles: null
   contextQuery:
-    prompt: "update orchestrator.rs run_next_task() sequence"
+    prompt: keyring crate integration
+    tokenBudget: 3500
+  acceptanceCriteria:
+  - description: keyring::Entry
+    type: text_check
+    file: docs/scripts/src/secure_vault.rs
+    assertion: contains_string
+    value: keyring::Entry
+  testFile: null
+- id: QUAL-01-self-refine
+  label: Self-Refine loop (Law L9)
+  goal: After LLM draft >50 lines or tasks>5, run critic + refiner.
+  status: todo
+  needs:
+  - SEC-01-sandbox
+  contextFiles: null
+  contextQuery:
+    prompt: critique_prompt + refiner_prompt
+    tokenBudget: 4000
+  acceptanceCriteria:
+  - description: fn self_refine
+    type: text_check
+    file: docs/scripts/src/self_refine.rs
+    assertion: contains_string
+    value: self_refine
+  testFile: null
+- id: QUAL-02-thinker-talker
+  label: Thinker-Talker pattern for tool plans
+  goal: Hidden chain-of-thought, public short rationale for multi-tool tasks.
+  status: todo
+  needs:
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: implement thinker_talker.rs
     tokenBudget: 3000
   acceptanceCriteria:
-    - description: "run_next_task("
-      type: "text_check"
-      file: "docs/scripts/src/orchestrator.rs"
-      assertion: "contains_string"
-      value: "run_next_task"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  8 · CI / RELEASE & DOCS
-# ──────────────────────────────────────────────────────────────────────────
+  - description: ThinkerTalker struct
+    type: text_check
+    file: docs/scripts/src/thinker_talker.rs
+    assertion: contains_string
+    value: struct ThinkerTalker
+  testFile: null
+- id: CTX-01-tree-sitter
+  label: 'sketch.rs: integrate Tree-sitter Rust parser'
+  goal: Build SymbolGraph, extract top-relevant funcs for context.
+  status: todo
+  needs:
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: use tree_sitter crates
+    tokenBudget: 4500
+  acceptanceCriteria:
+  - description: extern crate tree_sitter
+    type: text_check
+    file: docs/scripts/src/sketch.rs
+    assertion: contains_string
+    value: tree_sitter
+  testFile: null
+- id: CTX-02-embedding-fallback
+  label: 'Fallback: cheap embeddings search when Tree-sitter over budget'
+  goal: Use on-disk embeddings (all-MiniLM) for top-k snippet retrieval.
+  status: todo
+  needs:
+  - CTX-01-tree-sitter
+  contextFiles: null
+  contextQuery:
+    prompt: embedding_store.rs
+    tokenBudget: 4000
+  acceptanceCriteria:
+  - description: sentence_transformers
+    type: text_check
+    file: docs/scripts/Cargo.toml
+    assertion: contains_string
+    value: sentence-transformers
+  testFile: null
+- id: CTX-03-sketch-invoke
+  label: 'brain sketch: expose sketch.rs via CLI'
+  goal: New subcommand prints JSON bundle for a given task ID.
+  status: todo
+  needs:
+  - CTX-01-tree-sitter
+  contextFiles: null
+  contextQuery:
+    prompt: add cmd brain sketch <task_id> that returns context JSON
+    tokenBudget: 2500
+  acceptanceCriteria:
+  - description: fn build_context_bundle(
+    type: text_check
+    file: docs/scripts/src/sketch.rs
+    assertion: contains_string
+    value: build_context_bundle
+  testFile: null
+- id: REFL-01-ldst-runner
+  label: 'CLI: brain ldst (auto-answer)'
+  goal: Parse ldst_v0.md → answer Qs → gap log → score.
+  status: todo
+  needs:
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: ldst_runner.rs
+    tokenBudget: 4500
+  acceptanceCriteria:
+  - description: ldst_gap_log.md exists
+    type: file_exists
+    file: docs/reflection_qa/ldst_gap_log.md
+    assertion: null
+    value: null
+  testFile: null
+- id: REFL-02-ldst-calibrate
+  label: 'CLI: brain ldst-calibrate'
+  goal: Run auto-answer twice; ensure score ≥80 %; fail otherwise.
+  status: todo
+  needs:
+  - REFL-01-ldst-runner
+  contextFiles: null
+  contextQuery:
+    prompt: ldst_calibrate.rs
+    tokenBudget: 3500
+  acceptanceCriteria:
+  - description: CALIBRATION PASS
+    type: text_check
+    file: docs/scripts/src/ldst_calibrate.rs
+    assertion: contains_string
+    value: CALIBRATION PASS
+  testFile: null
+- id: REFL-03-decay-monitor
+  label: 'tool: reflection_decay_monitor'
+  goal: Compare verify failure rates w/ reflection off vs on; log report.
+  status: todo
+  needs:
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: decay_monitor.rs
+    tokenBudget: 4000
+  acceptanceCriteria:
+  - description: decay_report
+    type: file_exists
+    file: docs/reflection_qa/decay_report_latest.md
+    assertion: null
+    value: null
+  testFile: null
+- id: UX-01-graceful-shutdown
+  label: SIGINT/SIGTERM handler flush logs & atomic writes (Law L11)
+  goal: Create shutdown_manager.rs; register with ctrlc crate.
+  status: todo
+  needs:
+  - STOR-03-audit-hashchain
+  contextFiles: null
+  contextQuery:
+    prompt: shutdown_manager.rs
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - description: CtrlC handler
+    type: text_check
+    file: docs/scripts/src/shutdown_manager.rs
+    assertion: contains_string
+    value: ctrlc::set_handler
+  testFile: null
+- id: UX-02-dev-unsafe-flag
+  label: 'Flag: --dev-log-unsafe-io persistent banner'
+  goal: When env var or flag set, log raw I/O in *-unsafe.jsonl and print red banner.
+  status: todo
+  needs:
+  - UX-01-graceful-shutdown
+  contextFiles: null
+  contextQuery:
+    prompt: implement flag parse + banner
+    tokenBudget: 2500
+  acceptanceCriteria:
+  - description: "red\e[31m"
+    type: text_check
+    file: docs/scripts/src/main.rs
+    assertion: contains_string
+    value: red banner
+  testFile: null
+- id: UX-03-chat-task
+  label: 'CLI: brain chat-task <ID> (UPE call + temp branch)'
+  goal: 1) Call sketch bundle 2) Start UPE chat 3) write files to /tmp/<branch>
+  status: todo
+  needs:
+  - CTX-03-sketch-invoke
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: implement chat_task.rs; use reqwest to call OpenAI; save output
+    tokenBudget: 4500
+  acceptanceCriteria:
+  - description: chat_task.rs exists
+    type: file_exists
+    file: docs/scripts/src/chat_task.rs
+    assertion: null
+    value: null
+  testFile: null
+- id: UX-04-wire-brain-next
+  label: 'brain next: invoke chat-task then verify'
+  goal: Modify orchestrator so 'brain next' runs chat-task on first OPEN task, then verifier; on PASS, merge temp branch.
+  status: todo
+  needs:
+  - UX-03-chat-task
+  contextFiles: null
+  contextQuery:
+    prompt: update orchestrator.rs run_next_task() sequence
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - description: run_next_task(
+    type: text_check
+    file: docs/scripts/src/orchestrator.rs
+    assertion: contains_string
+    value: run_next_task
+  testFile: null
 - id: CI-01-github-workflow
-  label: "CI: build, test, fmt, clippy, cost-regression"
+  label: 'CI: build, test, fmt, clippy, cost-regression'
   goal: Composite workflow using Rust cache and cost step.
   status: todo
-  needs: [OBS-02-otel-exporter, COST-02-weekly-regression, QUAL-01-self-refine]
-  contextQuery: {prompt: "ci.yml", tokenBudget: 2800}
+  needs:
+  - OBS-02-otel-exporter
+  - COST-02-weekly-regression
+  - QUAL-01-self-refine
+  contextFiles: null
+  contextQuery:
+    prompt: ci.yml
+    tokenBudget: 2800
   acceptanceCriteria:
-    - description: "uses: actions-rs/toolchain"
-      type: "text_check"
-      file: ".github/workflows/ci.yml"
-      assertion: "contains_string"
-      value: "actions-rs"
-
+  - description: 'uses: actions-rs/toolchain'
+    type: text_check
+    file: .github/workflows/ci.yml
+    assertion: contains_string
+    value: actions-rs
+  testFile: null
 - id: REL-01-crates-setup
-  label: "Release: prepare publishing to crates.io"
+  label: 'Release: prepare publishing to crates.io'
   goal: Fill Cargo.toml metadata; set license MIT; add CHANGELOG.md.
   status: todo
-  needs: [CI-01-github-workflow]
-  contextQuery: {prompt: "update Cargo.toml package metadata", tokenBudget: 1800}
+  needs:
+  - CI-01-github-workflow
+  contextFiles: null
+  contextQuery:
+    prompt: update Cargo.toml package metadata
+    tokenBudget: 1800
   acceptanceCriteria:
-    - description: "license = \"MIT\""
-      type: "text_check"
-      file: "docs/scripts/Cargo.toml"
-      assertion: "contains_string"
-      value: "license = \"MIT\""
-
+  - description: license = "MIT"
+    type: text_check
+    file: docs/scripts/Cargo.toml
+    assertion: contains_string
+    value: license = "MIT"
+  testFile: null
 - id: REL-02-homebrew-tap
-  label: "Release: Homebrew formula"
+  label: 'Release: Homebrew formula'
   goal: Provide brew tap script for macOS users.
   status: todo
-  needs: [REL-01-crates-setup]
-  contextQuery: {prompt: "create brew formula in scripts/homebrew.rb", tokenBudget: 1800}
+  needs:
+  - REL-01-crates-setup
+  contextFiles: null
+  contextQuery:
+    prompt: create brew formula in scripts/homebrew.rb
+    tokenBudget: 1800
   acceptanceCriteria:
-    - description: "class BrainCli < Formula"
-      type: "text_check"
-      file: "scripts/homebrew.rb"
-      assertion: "contains_string"
-      value: "class BrainCli"
-
-# ──────────────────────────────────────────────────────────────────────────
-#  9 · DOCUMENTATION FINAL PASS
-# ──────────────────────────────────────────────────────────────────────────
+  - description: class BrainCli < Formula
+    type: text_check
+    file: scripts/homebrew.rb
+    assertion: contains_string
+    value: class BrainCli
+  testFile: null
 - id: DOCS-01-user-guide
-  label: "Docs: Comprehensive User Guide v1"
+  label: 'Docs: Comprehensive User Guide v1'
   goal: Step-by-step tutorial (plan → next → conclude), screenshots, Jaeger demo.
   status: todo
-  needs: [REL-02-homebrew-tap, UX-02-dev-unsafe-flag]
+  needs:
+  - REL-02-homebrew-tap
+  - UX-02-dev-unsafe-flag
+  contextFiles: null
   contextQuery:
-    prompt: >
-      Create docs/user_guide.md with quickstart, feature walkthrough, cost
-      dashboard screenshot (placeholder link), audit-log verification example,
-      troubleshooting FAQ.
+    prompt: |
+      Create docs/user_guide.md with quickstart, feature walkthrough, cost dashboard screenshot (placeholder link), audit-log verification example, troubleshooting FAQ.
     tokenBudget: 8000
   acceptanceCriteria:
-    - description: "user_guide.md exists"
-      type: "file_exists"
-      file: "docs/user_guide.md"
-
-# ──────────────────────────────────────────────────────────────────────────
-# 10 · ONBOARDING & IN-APP GUIDANCE
-# ──────────────────────────────────────────────────────────────────────────
+  - description: user_guide.md exists
+    type: file_exists
+    file: docs/user_guide.md
+    assertion: null
+    value: null
+  testFile: null
 - id: ONB-01-welcome-banner
-  label: "CLI: first-run banner + quick-start hint"
-  goal: Detect fresh install (.brain missing) → print 6-line ASCII banner
-        + “Run: brain plan 'Your idea' → brain next” + link to user guide.
-  status: todo
-  needs: [UX-02-dev-unsafe-flag]
+  label: 'CLI: first-run banner + quick-start hint'
+  goal: |
+    Detect a fresh installation (e.g., .brain directory missing), print a 6-line ASCII banner, and show the hint: "Run: brain plan 'Your idea' -> brain next" with a link to the user guide.
+  status: pending
+  needs:
+  - UX-02-dev-unsafe-flag
+  contextFiles: null
   contextQuery:
-    prompt: >
-      Add first_run_check() in main.rs.
-      If ~/.brain or .brain/ absent, show banner with next-step commands.
+    prompt: |
+      Add first_run_check() in main.rs. If ~/.brain or .brain/ absent, show banner with next-step commands.
     tokenBudget: 1200
   acceptanceCriteria:
-    - description: "first_run_check("
-      type: "text_check"
-      file: "docs/scripts/src/main.rs"
-      assertion: "contains_string"
-      value: "first_run_check"
-
+  - description: first_run_check(
+    type: text_check
+    file: docs/cli/src/main.rs
+    assertion: contains_string
+    value: first_run_check
+  testFile: null
 - id: ONB-02-interactive-tutorial
-  label: "CLI: brain tutorial (guided sandbox project)"
-  goal: `brain tutorial` clones tiny example repo to /tmp, walks user
-        through plan → next → verify flow with prompts and pauses.
+  label: 'CLI: brain tutorial (guided sandbox project)'
+  goal: brain tutorial clones tiny example repo to the tmp folder, walks user through plan → next → verify flow with prompts and pauses.
   status: todo
-  needs: [ONB-01-welcome-banner]
+  needs:
+  - ONB-01-welcome-banner
+  contextFiles: null
   contextQuery:
-    prompt: >
-      Create tutorial.rs: clone git@github.com:brain-proto/tutorial-base,
-      step through plan/next/verify; coloured prompts, press Enter to
-      continue.
+    prompt: |
+      Create tutorial.rs: clone git@github.com:brain-proto/tutorial-base, step through plan/next/verify; coloured prompts, press Enter to continue.
     tokenBudget: 3000
   acceptanceCriteria:
-    - description: "tutorial.rs exists"
-      type: "file_exists"
-      file: "docs/scripts/src/tutorial.rs"
-
+  - description: tutorial.rs exists
+    type: file_exists
+    file: docs/scripts/src/tutorial.rs
+    assertion: null
+    value: null
+  testFile: null
 - id: ONB-03-help-command
-  label: "CLI: brain help <topic>"
-  goal: Add subcommand that prints condensed cheatsheets pulled from
-        docs/user_guide.md sections (Plan, Audit, Code, LDST).
+  label: 'CLI: brain help <topic>'
+  goal: Add subcommand that prints condensed cheatsheets pulled from docs/user_guide.md sections (Plan, Audit, Code, LDST).
   status: todo
-  needs: [DOCS-01-user-guide]
+  needs:
+  - DOCS-01-user-guide
+  contextFiles: null
   contextQuery:
-    prompt: >
-      Implement help.rs to parse docs/user_guide.md and display
-      requested topic in terminal pager.
+    prompt: |
+      Implement help.rs to parse docs/user_guide.md and display requested topic in terminal pager.
     tokenBudget: 2000
   acceptanceCriteria:
-    - description: "help.rs exists"
-      type: "file_exists"
-      file: "docs/scripts/src/help.rs"
-
+  - description: help.rs exists
+    type: file_exists
+    file: docs/scripts/src/help.rs
+    assertion: null
+    value: null
+  testFile: null
 - id: ONB-04-ldst-reminder
-  label: "CLI: automatic LDST reminder"
-  goal: If 90 days since last docs/reflection_qa/ldst_gap_log.md entry,
-        warn user on startup: “Run brain ldst”.
+  label: 'CLI: automatic LDST reminder'
+  goal: If 90 days since last docs/reflection_qa/ldst_gap_log.md entry, warn user on startup “Run brain ldst”.
   status: todo
-  needs: [REFL-01-ldst-runner]
+  needs:
+  - REFL-01-ldst-runner
+  contextFiles: null
   contextQuery:
-    prompt: >
-      Add last_ldst_check() call in main.rs; use file metadata timestamp
-      or YAML header date.
+    prompt: |
+      Add last_ldst_check() call in main.rs; use file metadata timestamp or YAML header date.
     tokenBudget: 1200
   acceptanceCriteria:
-    - description: "last_ldst_check("
-      type: "text_check"
-      file: "docs/scripts/src/main.rs"
-      assertion: "contains_string"
-      value: "last_ldst_check"
+  - description: last_ldst_check(
+    type: text_check
+    file: docs/scripts/src/main.rs
+    assertion: contains_string
+    value: last_ldst_check
+  testFile: null
