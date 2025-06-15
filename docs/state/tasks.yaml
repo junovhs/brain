@@ -1,151 +1,352 @@
-version: 2
+version: 4
+#  ╔═══════════════════════════════════════════════════════════════════════╗
+#  ║  BRAIN Protocol · Phase-II Sprint “HARDEN & SCALE” (Task Graph)       ║
+#  ║  Scope: from today’s MVP  ➜  enterprise-grade, audit-ready CLI       ║
+#  ╚═══════════════════════════════════════════════════════════════════════╝
+
+# ──────────────────────────────────────────────────────────────────────────
+#  0 · PREP & HOUSEKEEPING
+# ──────────────────────────────────────────────────────────────────────────
 tasks:
-- id: FINAL-1-add-deps
-  label: 'Integration: Add final dependencies for hashing and HTTP'
-  goal: Add 'reqwest', 'tokio', and 'sha2' as dependencies to Cargo.toml to prepare for versioning and future API calls.
-  status: completed
+- id: PREP-01-repo-clean
+  label: "Repo: Archive legacy prompts & create .brainignore"
+  goal: Move outdated persona prompts to docs/legacy_prompts/ and add .brainignore (target/, *.tmp, *.sqlite3.bak)
+  status: todo
   needs: []
-  contextFiles: null
-  contextQuery:
-    prompt: 'Add ''reqwest'' (with ''json'' feature), ''tokio'' (with ''full'' feature), and ''sha2'' to the [dependencies] section of docs/scripts/Cargo.toml. Also, ensure the main function in main.rs is marked with #[tokio::main].'
-    tokenBudget: 2000
+  contextQuery: {prompt: "git mv docs/prompts/* docs/legacy_prompts/", tokenBudget: 1200}
   acceptanceCriteria:
-  - description: Cargo.toml contains a dependency on 'reqwest'.
-    type: text_check
-    file: docs/scripts/Cargo.toml
-    assertion: contains_string
-    value: reqwest =
-  - description: Cargo.toml contains a dependency on 'sha2'.
-    type: text_check
-    file: docs/scripts/Cargo.toml
-    assertion: contains_string
-    value: sha2 =
-  - description: 'The main function in main.rs is marked with #[tokio::main].'
-    type: text_check
-    file: docs/scripts/src/main.rs
-    assertion: contains_string
-    value: '#[tokio::main]'
-  testFile: null
-- id: FINAL-2-implement-hasher
-  label: 'Integration: Implement a file hashing utility'
-  goal: Create a utility function that can take a file path, read the file, and return its SHA-256 hash. This is a core component of the versioning system.
-  status: completed
-  needs:
-  - FINAL-1-add-deps
-  contextFiles: null
+  - {description: ".brainignore exists", type: file_exists, file: .brainignore}
+
+# ──────────────────────────────────────────────────────────────────────────
+#  1 · STORAGE & INTEGRITY
+# ──────────────────────────────────────────────────────────────────────────
+- id: STOR-01-sqlcipher
+  label: "DB: Encrypt .brain_db with SQLCipher (Law L1)"
+  goal: Derive key via Argon2id, store master secret in OS keychain.
+  status: todo
+  needs: [PREP-01-repo-clean]
+  contextQuery: {prompt: "Implement SQLCipher + Argon2id", tokenBudget: 4000}
+  acceptanceCriteria:
+  - {description: "PRAGMA key", type: text_check, file: docs/scripts/src/db.rs, assertion: contains_string, value: PRAGMA key}
+
+- id: STOR-02-wal-checksum
+  label: "tasks.yaml: tempfile+rename + SHA-256 manifest"
+  goal: Write tasks.yaml atomically and record checksum in .brain/manifest.json.
+  status: todo
+  needs: [STOR-01-sqlcipher]
+  contextQuery: {prompt: "tempfile write then rename; update manifest.json", tokenBudget: 2500}
+  acceptanceCriteria:
+  - {description: "manifest.json updated", type: file_exists, file: .brain/manifest.json}
+
+- id: STOR-03-audit-hashchain
+  label: "AuditLogger: hash-chained JSONL (Law L2)"
+  goal: Implement prev_hash + hash; abort on IO error.
+  status: todo
+  needs: [STOR-02-wal-checksum]
+  contextQuery: {prompt: "audit_logger.rs hash chain", tokenBudget: 3500}
+  acceptanceCriteria:
+  - {description: "prev_hash", type: text_check, file: docs/scripts/src/audit_logger.rs, assertion: contains_string, value: prev_hash}
+
+# ──────────────────────────────────────────────────────────────────────────
+#  2 · OBSERVABILITY & COST
+# ──────────────────────────────────────────────────────────────────────────
+- id: OBS-01-otel-core
+  label: "OTel: root span + LLM spans (Law L3)"
+  goal: Add opentelemetry, architect_chat, coder_chat, verifier spans.
+  status: todo
+  needs: [STOR-03-audit-hashchain]
+  contextQuery: {prompt: "insert span!() in architect.rs coder.rs", tokenBudget: 4000}
+  acceptanceCriteria:
+  - {description: "brain_cli.command span", type: text_check, file: docs/scripts/src/main.rs, assertion: contains_string, value: span!(}
+
+- id: OBS-02-otel-exporter
+  label: "OTel: OTLP exporter + Jaeger docker compose"
+  goal: Ship spans to localhost:4317; provide docs/docker-compose-jaeger.yml.
+  status: todo
+  needs: [OBS-01-otel-core]
+  contextQuery: {prompt: "configure OTLP grpc exporter", tokenBudget: 2500}
+  acceptanceCriteria:
+  - {description: "docker-compose-jaeger.yml exists", type: file_exists, file: docs/docker-compose-jaeger.yml}
+
+- id: COST-01-resource-governor
+  label: "Cost: ResourceGovernor + --max-usd"
+  goal: Pre-estimate tokens, ledger CSV, deny if budget exceeded.
+  status: todo
+  needs: [OBS-02-otel-exporter]
+  contextQuery: {prompt: "resource_governor.rs approve(cost)", tokenBudget: 3000}
+  acceptanceCriteria:
+  - {description: "cost_ledger.csv", type: file_exists, file: .brain/cost_ledger.csv}
+
+- id: COST-02-weekly-regression
+  label: "CI: GitHub Action weekly cost regression"
+  goal: Run benchmark scripts, fail if avg feature cost > $0.45.
+  status: todo
+  needs: [COST-01-resource-governor]
+  contextQuery: {prompt: "create .github/workflows/cost_reg.yml", tokenBudget: 2200}
+  acceptanceCriteria:
+  - {description: "cost_reg.yml exists", type: file_exists, file: .github/workflows/cost_reg.yml}
+
+# ──────────────────────────────────────────────────────────────────────────
+#  3 · SECURITY
+# ──────────────────────────────────────────────────────────────────────────
+- id: SEC-01-sandbox
+  label: "Verifier: WASM sandbox (Wasmtime)"
+  goal: Compile generated tests to WASM; cap mem & time; no network.
+  status: todo
+  needs: [COST-01-resource-governor]
+  contextQuery: {prompt: "sandbox.rs with Wasmtime config", tokenBudget: 4500}
+  acceptanceCriteria:
+  - {description: "wasmtime::Engine", type: text_check, file: docs/scripts/src/sandbox.rs, assertion: contains_string, value: wasmtime::Engine}
+
+- id: SEC-02-api-key-vault
+  label: "SecureVault: cross-platform OS keychain wrapper"
+  goal: macOS Keychain, wincred, libsecret; fallback encrypted JSON.
+  status: todo
+  needs: [SEC-01-sandbox]
+  contextQuery: {prompt: "keyring crate integration", tokenBudget: 3500}
+  acceptanceCriteria:
+  - {description: "keyring::Entry", type: text_check, file: docs/scripts/src/secure_vault.rs, assertion: contains_string, value: keyring::Entry}
+
+# ──────────────────────────────────────────────────────────────────────────
+#  4 · QUALITY & REFLECTION
+# ──────────────────────────────────────────────────────────────────────────
+- id: QUAL-01-self-refine
+  label: "Self-Refine loop (Law L9)"
+  goal: After LLM draft >50 lines or tasks>5, run critic + refiner.
+  status: todo
+  needs: [SEC-01-sandbox]
+  contextQuery: {prompt: "critique_prompt + refiner_prompt", tokenBudget: 4000}
+  acceptanceCriteria:
+  - {description: "fn self_refine", type: text_check, file: docs/scripts/src/self_refine.rs, assertion: contains_string, value: self_refine}
+
+- id: QUAL-02-thinker-talker
+  label: "Thinker-Talker pattern for tool plans"
+  goal: Hidden chain-of-thought, public short rationale for multi-tool tasks.
+  status: todo
+  needs: [QUAL-01-self-refine]
+  contextQuery: {prompt: "implement thinker_talker.rs", tokenBudget: 3000}
+  acceptanceCriteria:
+  - {description: "ThinkerTalker struct", type: text_check, file: docs/scripts/src/thinker_talker.rs, assertion: contains_string, value: struct ThinkerTalker }
+
+# ──────────────────────────────────────────────────────────────────────────
+#  5 · CONTEXT ENGINE
+# ──────────────────────────────────────────────────────────────────────────
+- id: CTX-01-tree-sitter
+  label: "sketch.rs: integrate Tree-sitter Rust parser"
+  goal: Build SymbolGraph, extract top-relevant funcs for context.
+  status: todo
+  needs: [QUAL-01-self-refine]
+  contextQuery: {prompt: "use tree_sitter crates", tokenBudget: 4500}
+  acceptanceCriteria:
+  - {description: "extern crate tree_sitter", type: text_check, file: docs/scripts/src/sketch.rs, assertion: contains_string, value: tree_sitter}
+
+- id: CTX-02-embedding-fallback
+  label: "Fallback: cheap embeddings search when Tree-sitter over budget"
+  goal: Use on-disk embeddings (all-MiniLM) for top-k snippet retrieval.
+  status: todo
+  needs: [CTX-01-tree-sitter]
+  contextQuery: {prompt: "embedding_store.rs", tokenBudget: 4000}
+  acceptanceCriteria:
+  - {description: "sentence_transformers", type: text_check, file: docs/scripts/Cargo.toml, assertion: contains_string, value: sentence-transformers}
+
+- id: CTX-03-sketch-invoke
+  label: "brain sketch: expose sketch.rs via CLI"
+  goal: New subcommand prints JSON bundle for a given task ID.
+  status: todo
+  needs: [CTX-01-tree-sitter]
   contextQuery:
-    prompt: Create a new module `utils.rs`. Inside it, create a public function `calculate_file_hash` that takes a `&Path` as an argument. This function should read the file's bytes and use the `sha2` crate to compute and return a hex string representation of the SHA-256 hash. Ensure this new module is declared in `main.rs`.
+    prompt: "add cmd brain sketch <task_id> that returns context JSON"
+    tokenBudget: 2500
+  acceptanceCriteria:
+  - {description: "fn build_context_bundle(", type: text_check,
+     file: docs/scripts/src/sketch.rs, assertion: contains_string,
+     value: build_context_bundle}
+# ──────────────────────────────────────────────────────────────────────────
+#  6 · LDST & REFLECTION HEALTH
+# ──────────────────────────────────────────────────────────────────────────
+- id: REFL-01-ldst-runner
+  label: "CLI: brain ldst (auto-answer)"
+  goal: Parse ldst_v0.md → answer Qs → gap log → score.
+  status: todo
+  needs: [QUAL-01-self-refine]
+  contextQuery: {prompt: "ldst_runner.rs", tokenBudget: 4500}
+  acceptanceCriteria:
+  - {description: "ldst_gap_log.md exists", type: file_exists, file: docs/reflection_qa/ldst_gap_log.md}
+
+- id: REFL-02-ldst-calibrate
+  label: "CLI: brain ldst-calibrate"
+  goal: Run auto-answer twice; ensure score ≥80 %; fail otherwise.
+  status: todo
+  needs: [REFL-01-ldst-runner]
+  contextQuery: {prompt: "ldst_calibrate.rs", tokenBudget: 3500}
+  acceptanceCriteria:
+  - {description: "CALIBRATION PASS", type: text_check, file: docs/scripts/src/ldst_calibrate.rs, assertion: contains_string, value: CALIBRATION PASS}
+
+- id: REFL-03-decay-monitor
+  label: "tool: reflection_decay_monitor"
+  goal: Compare verify failure rates w/ reflection off vs on; log report.
+  status: todo
+  needs: [QUAL-01-self-refine]
+  contextQuery: {prompt: "decay_monitor.rs", tokenBudget: 4000}
+  acceptanceCriteria:
+  - {description: "decay_report", type: file_exists, file: docs/reflection_qa/decay_report_latest.md}
+
+# ──────────────────────────────────────────────────────────────────────────
+#  7 · CLI & UX SAFETY
+# ──────────────────────────────────────────────────────────────────────────
+- id: UX-01-graceful-shutdown
+  label: "SIGINT/SIGTERM handler flush logs & atomic writes (Law L11)"
+  goal: Create shutdown_manager.rs; register with ctrlc crate.
+  status: todo
+  needs: [STOR-03-audit-hashchain]
+  contextQuery: {prompt: "shutdown_manager.rs", tokenBudget: 3000}
+  acceptanceCriteria:
+  - {description: "CtrlC handler", type: text_check, file: docs/scripts/src/shutdown_manager.rs, assertion: contains_string, value: ctrlc::set_handler}
+
+- id: UX-02-dev-unsafe-flag
+  label: "Flag: --dev-log-unsafe-io persistent banner"
+  goal: When env var or flag set, log raw I/O in *-unsafe.jsonl and print red banner.
+  status: todo
+  needs: [UX-01-graceful-shutdown]
+  contextQuery: {prompt: "implement flag parse + banner", tokenBudget: 2500}
+  acceptanceCriteria:
+  - {description: "red\u001b[31m", type: text_check, file: docs/scripts/src/main.rs, assertion: contains_string, value: red banner}
+
+- id: UX-03-chat-task
+  label: "CLI: brain chat-task <ID> (UPE call + temp branch)"
+  goal: 1) Call sketch bundle 2) Start UPE chat 3) write files to /tmp/<branch>
+  status: todo
+  needs: [CTX-03-sketch-invoke, QUAL-01-self-refine]
+  contextQuery:
+    prompt: "implement chat_task.rs; use reqwest to call OpenAI; save output"
+    tokenBudget: 4500
+  acceptanceCriteria:
+  - {description: "chat_task.rs exists", type: file_exists,
+     file: docs/scripts/src/chat_task.rs}
+
+- id: UX-04-wire-brain-next
+  label: "brain next: invoke chat-task then verify"
+  goal: Modify orchestrator so 'brain next' runs chat-task on first OPEN task,
+        then verifier; on PASS, merge temp branch.
+  status: todo
+  needs: [UX-03-chat-task]
+  contextQuery:
+    prompt: "update orchestrator.rs run_next_task() sequence"
     tokenBudget: 3000
   acceptanceCriteria:
-  - description: A new 'utils.rs' file exists in the src directory.
-    type: file_exists
-    file: docs/scripts/src/utils.rs
-    assertion: null
-    value: null
-  - description: utils.rs contains a function named 'calculate_file_hash'.
-    type: text_check
-    file: docs/scripts/src/utils.rs
-    assertion: contains_string
-    value: pub fn calculate_file_hash
-  - description: The `sha2` crate is imported in utils.rs.
-    type: text_check
-    file: docs/scripts/src/utils.rs
-    assertion: contains_string
-    value: use sha2
-  - description: The Sha256 hasher is instantiated in utils.rs.
-    type: text_check
-    file: docs/scripts/src/utils.rs
-    assertion: contains_string
-    value: Sha256::new()
-  - description: main.rs declares the 'utils' module.
-    type: text_check
-    file: docs/scripts/src/main.rs
-    assertion: contains_string
-    value: mod utils;
-  testFile: null
-- id: FINAL-3-integrate-versioning
-  label: 'Integration: Create version snapshot on ''conclude'''
-  goal: Enhance the 'conclude' command to trigger the creation of a new version snapshot in the database, capturing the state of all project files.
-  status: completed
-  needs:
-  - FINAL-2-implement-hasher
-  contextFiles: null
-  contextQuery:
-    prompt: 'Modify `conclude.rs`. After successfully updating the task status, it should: 1. Scan the entire project directory (excluding .git, target, etc.). 2. For each file, use the new `utils::calculate_file_hash` to get its hash. 3. Collect this into a `Vec<ScannedFileInfo>`. 4. Populate a `SnapshotRequest` object. 5. Call the `versioning::create_project_snapshot` function to save the version to the database.'
-    tokenBudget: 4000
+  - {description: "run_next_task(", type: text_check,
+     file: docs/scripts/src/orchestrator.rs, assertion: contains_string,
+     value: run_next_task}
+# ──────────────────────────────────────────────────────────────────────────
+#  8 · CI / RELEASE & DOCS
+# ──────────────────────────────────────────────────────────────────────────
+- id: CI-01-github-workflow
+  label: "CI: build, test, fmt, clippy, cost-regression"
+  goal: Composite workflow using Rust cache and cost step.
+  status: todo
+  needs: [OBS-02-otel-exporter, COST-02-weekly-regression, QUAL-01-self-refine]
+  contextQuery: {prompt: "ci.yml", tokenBudget: 2800}
   acceptanceCriteria:
-  - description: conclude.rs calls the `create_project_snapshot` function.
-    type: text_check
-    file: docs/scripts/src/conclude.rs
-    assertion: contains_string
-    value: versioning::create_project_snapshot
-  - description: conclude.rs uses the file hashing utility.
-    type: text_check
-    file: docs/scripts/src/conclude.rs
-    assertion: contains_string
-    value: utils::calculate_file_hash
-  - description: The 'walkdir' crate is added as a dependency to help with directory traversal.
-    type: text_check
-    file: docs/scripts/Cargo.toml
-    assertion: contains_string
-    value: walkdir =
-  testFile: null
-- id: FINAL-4-prepare-for-treesitter
-  label: 'Integration: Prepare Sketch module for Tree-sitter'
-  goal: Update the placeholder `sketch.rs` module to include the necessary structures and function signatures for a future Tree-sitter implementation, completing the conceptual extraction from `diranalyze`.
-  status: completed
-  needs:
-  - FINAL-3-integrate-versioning
-  contextFiles: null
-  contextQuery:
-    prompt: In `sketch.rs`, add placeholder structs for `SymbolGraph` and `CodeSymbol`. Modify the `generate_context_package` function signature to accept a reference to the `&AppState`. Add placeholder comments outlining where `tree-sitter` would be used to parse files and build the symbol graph.
-    tokenBudget: 3000
+  - {description: "uses: actions-rs/toolchain", type: text_check, file: .github/workflows/ci.yml, assertion: contains_string, value: actions-rs}
+
+- id: REL-01-crates-setup
+  label: "Release: prepare publishing to crates.io"
+  goal: Fill Cargo.toml metadata; set license MIT; add CHANGELOG.md.
+  status: todo
+  needs: [CI-01-github-workflow]
+  contextQuery: {prompt: "update Cargo.toml package metadata", tokenBudget: 1800}
   acceptanceCriteria:
-  - description: sketch.rs contains a placeholder struct named 'SymbolGraph'.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
-    value: pub struct SymbolGraph
-  - description: sketch.rs contains a placeholder struct named 'CodeSymbol'.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
-    value: pub struct CodeSymbol
-  - description: The `generate_context_package` function signature now accepts `&AppState`.
-    type: text_check
-    file: docs/scripts/src/sketch.rs
-    assertion: contains_string
-    value: 'state: &AppState'
-  testFile: null
-- id: M1-update-documentation
-  label: 'Docs: Update BRAIN.md and ADR-001 for new features'
-  goal: Ensure BRAIN.md and ADR-001 accurately reflect the new `conclude` command, the versioning system, and the refactored context engine.
-  status: completed
-  needs:
-  - FINAL-4-prepare-for-treesitter
-  contextFiles: null
+  - {description: "license = \"MIT\"", type: text_check, file: docs/scripts/Cargo.toml, assertion: contains_string, value: license = "MIT"}
+
+- id: REL-02-homebrew-tap
+  label: "Release: Homebrew formula"
+  goal: Provide brew tap script for macOS users.
+  status: todo
+  needs: [REL-01-crates-setup]
+  contextQuery: {prompt: "create brew formula in scripts/homebrew.rb", tokenBudget: 1800}
+  acceptanceCriteria:
+  - {description: "class BrainCli < Formula", type: text_check, file: scripts/homebrew.rb, assertion: contains_string, value: class BrainCli }
+
+# ──────────────────────────────────────────────────────────────────────────
+#  9 · DOCUMENTATION FINAL PASS
+# ──────────────────────────────────────────────────────────────────────────
+- id: DOCS-01-user-guide
+  label: "Docs: Comprehensive User Guide v1"
+  goal: Step-by-step tutorial (plan → next → conclude), screenshots, Jaeger demo.
+  status: todo
+  needs: [REL-02-homebrew-tap, UX-02-dev-unsafe-flag]
   contextQuery:
-    prompt: Review BRAIN.md, specifically Section G.2 (Development Cycle), and ADR-001. Update them to include the new `conclude` command, the database-backed versioning system triggered by `conclude`, and the replacement of static `contextFiles` with the intelligent `contextQuery` and `sketch.rs` module. Reflect the deprecation of manual YAML editing for task completion.
+    prompt: >
+      Create docs/user_guide.md with quickstart, feature walkthrough, cost
+      dashboard screenshot (placeholder link), audit-log verification example,
+      troubleshooting FAQ.
     tokenBudget: 8000
   acceptanceCriteria:
-  - description: BRAIN.md Section G.2 accurately describes the `conclude` command and its role.
-    type: text_check
-    file: BRAIN.md
-    assertion: contains_string
-    value: brain-cli conclude <task_id>
-  - description: BRAIN.md Section G.2 mentions version snapshot creation upon task conclusion.
-    type: text_check
-    file: BRAIN.md
-    assertion: contains_string
-    value: version snapshot
-  - description: ADR-001 (or a new ADR) documents the shift from manual YAML editing to the `conclude` command.
-    type: text_check
-    file: docs/history/ADR-001_Initial_Protocol_Design.md
-    assertion: contains_string
-    value: conclude command
-  - description: ADR-001 (or a new ADR) mentions the integration of database versioning.
-    type: text_check
-    file: docs/history/ADR-001_Initial_Protocol_Design.md
-    assertion: contains_string
-    value: database versioning
-  testFile: null
+  - {description: "user_guide.md exists", type: file_exists, file: docs/user_guide.md}
+# ──────────────────────────────────────────────────────────────────────────
+# 10 · ONBOARDING & IN-APP GUIDANCE
+# ──────────────────────────────────────────────────────────────────────────
+- id: ONB-01-welcome-banner
+  label: "CLI: first-run banner + quick-start hint"
+  goal: Detect fresh install (.brain missing) → print 6-line ASCII banner
+        + “Run: brain plan 'Your idea' → brain next” + link to user guide.
+  status: todo
+  needs: [UX-02-dev-unsafe-flag]          # ensure coloured output exists
+  contextQuery:
+    prompt: >
+      Add first_run_check() in main.rs.
+      If ~/.brain or .brain/ absent, show banner with next-step commands.
+    tokenBudget: 1200
+  acceptanceCriteria:
+  - {description: "first_run_check(", type: text_check,
+     file: docs/scripts/src/main.rs, assertion: contains_string,
+     value: first_run_check}
+
+- id: ONB-02-interactive-tutorial
+  label: "CLI: brain tutorial (guided sandbox project)"
+  goal: `brain tutorial` clones tiny example repo to /tmp, walks user
+        through plan → next → verify flow with prompts and pauses.
+  status: todo
+  needs: [ONB-01-welcome-banner]
+  contextQuery:
+    prompt: >
+      Create tutorial.rs: clone git@github.com:brain-proto/tutorial-base,
+      step through plan/next/verify; coloured prompts, press Enter to
+      continue.
+    tokenBudget: 3000
+  acceptanceCriteria:
+  - {description: "tutorial.rs exists", type: file_exists,
+     file: docs/scripts/src/tutorial.rs}
+
+- id: ONB-03-help-command
+  label: "CLI: brain help <topic>"
+  goal: Add subcommand that prints condensed cheatsheets pulled from
+        docs/user_guide.md sections (Plan, Audit, Code, LDST).
+  status: todo
+  needs: [DOCS-01-user-guide]
+  contextQuery:
+    prompt: >
+      Implement help.rs to parse docs/user_guide.md and display
+      requested topic in terminal pager.
+    tokenBudget: 2000
+  acceptanceCriteria:
+  - {description: "help.rs exists", type: file_exists,
+     file: docs/scripts/src/help.rs}
+
+- id: ONB-04-ldst-reminder
+  label: "CLI: automatic LDST reminder"
+  goal: If 90 days since last docs/reflection_qa/ldst_gap_log.md entry,
+        warn user on startup: “Run brain ldst”.
+  status: todo
+  needs: [REFL-01-ldst-runner]
+  contextQuery:
+    prompt: >
+      Add last_ldst_check() call in main.rs; use file metadata timestamp
+      or YAML header date.
+    tokenBudget: 1200
+  acceptanceCriteria:
+  - {description: "last_ldst_check(", type: text_check,
+     file: docs/scripts/src/main.rs, assertion: contains_string,
+     value: last_ldst_check}
+
+# End of tasks

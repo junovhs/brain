@@ -1,5 +1,3 @@
-// ===== FILE: brain/BRAIN.md  ===== //
----
 # =================================================================
 # BRAIN PROTOCOL - CANONICAL SPECIFICATION & OPERATING MANDATE
 # =================================================================
@@ -13,7 +11,7 @@
 # adhere to the principles and structures defined herein.
 # -----------------------------------------------------------------
 
-spec_version: "BRAIN-MANDATE-v1.3" # Will be v1.4 after this update
+spec_version: "BRAIN-MANDATE-v1.4" 
 
 # -----------------------------------------------------------------
 # Section A: Project Identity & Mission
