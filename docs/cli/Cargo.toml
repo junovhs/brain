@@ -1,4 +1,4 @@
-# Corrected FILE: docs/scripts/Cargo.toml
+# Corrected FILE: docs/cli/Cargo.toml
 
 [package]
 name = "brain-cli"
