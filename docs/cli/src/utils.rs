@@ -1,7 +1,6 @@
-// FILE: docs/scripts/src/utils.rs
-
+// File: docs/cli/src/utils.rs
 use anyhow::{Context, Result};
-use sha2::{Digest, Sha256}; // This is the correct, idiomatic import.
+use sha2::{Digest, Sha256}; 
 use std::fs;
 use std::path::Path;
 
@@ -9,6 +8,7 @@ use std::path::Path;
 ///
 /// Reads the file at the given path and returns its SHA-256 hash
 /// as a lowercase hexadecimal string.
+#[allow(dead_code)]
 pub fn calculate_file_hash(path: &Path) -> Result<String> {
     let file_bytes = fs::read(path)
         .with_context(|| format!("Failed to read file for hashing at {:?}", path))?;

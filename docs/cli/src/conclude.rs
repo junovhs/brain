@@ -1,11 +1,9 @@
-// ===== FILE: brain/docs/cli/src/conclude.rs  ===== //
+// File: docs/cli/src/conclude.rs
 use crate::model::TaskGraph;
-use crate::versioning::{self, ScannedFileInfo, SnapshotRequest};
-// THE FIX: Add manifest module to imports
-use crate::{utils, AppState, manifest};
+use crate::versioning::{self, SnapshotRequest};
+use crate::{AppState, manifest};
 use anyhow::{anyhow, Context, Result};
 use std::fs;
-use walkdir::WalkDir;
 use sha2::{Digest, Sha256}; // For hashing the new tasks.yaml content
 
 pub fn run(state: &AppState, task_id: &str) -> Result<()> {
@@ -69,4 +67,3 @@ pub fn run(state: &AppState, task_id: &str) -> Result<()> {
 
     Ok(())
 }
-// ===== END brain/docs/cli/src/conclude.rs ===== //

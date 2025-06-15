@@ -1,13 +1,14 @@
-// FILE: docs/scripts/src/sketch.rs
+// File: docs/cli/src/sketch.rs
 // Implements the "Hierarchical Semantic Sketch" concept from diranalyze.
 // This module is responsible for generating a token-budgeted,
 // intelligent context package based on a query.
 
 use crate::model::ContextQuery;
-use crate::AppState; // Added AppState
+use crate::AppState; 
 use anyhow::Result;
 
 // Placeholder for a node in the symbol graph (e.g., function, struct, variable)
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct CodeSymbol {
     pub id: String,         // e.g., "my_module::my_function"
@@ -22,6 +23,7 @@ pub struct CodeSymbol {
 }
 
 // Placeholder for the project's overall symbol graph
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct SymbolGraph {
     pub symbols: Vec<CodeSymbol>,

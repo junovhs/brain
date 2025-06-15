@@ -1,9 +1,10 @@
-// ===== FILE: brain/docs/cli/src/main.rs  ===== //
-use anyhow::{anyhow, Result};
+// File: docs/cli/src/main.rs
+use anyhow::{anyhow, Context, Result}; // Added Context
 use clap::Parser;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::env;
+use std::fs; // Added for file system operations
 use std::path::{Path, PathBuf};
 use crate::db::Connection;
 
@@ -13,7 +14,6 @@ mod context;
 mod db;
 mod governor;
 mod loader;
-// THE FIX: Add manifest module
 mod manifest;
 mod model;
 mod next;
@@ -23,7 +23,6 @@ mod utils;
 mod verifier;
 mod versioning;
 
-// ... (rest of the file is identical to the last version I sent) ...
 #[derive(Parser, Debug)]
 #[command(author, version, about = "The BRAIN Protocol Command-Line Interface", long_about = None)]
 struct BrainCli {
@@ -93,8 +92,15 @@ async fn run_command(state: &AppState, command: Commands) -> Result<()> {
             println!("// TODO: Implement 'configure' command logic.");
             Ok(())
         }
+        // THE FIX: Implement the 'prompt' command logic
         Commands::Prompt { role } => {
-            println!("// TODO: Implement 'prompt' command logic for role: {}", role);
+            let prompt_file_name = format!("{}.md", role);
+            let prompt_path = state.project_root.join("docs/prompts").join(prompt_file_name);
+
+            let content = fs::read_to_string(&prompt_path)
+                .with_context(|| format!("Failed to read prompt file at {:?}", prompt_path))?;
+            
+            println!("{}", content);
             Ok(())
         }
     }
@@ -181,4 +187,3 @@ fn find_project_root(start_dir: &Path) -> Option<&Path> {
         current = current.parent()?;
     }
 }
-// ===== END brain/docs/cli/src/main.rs ===== //
