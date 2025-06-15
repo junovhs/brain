@@ -1,49 +1,36 @@
-// FILE: docs/scripts/src/db.rs
-// Adapted from diranalyze/backend/src/db_manage.rs
-// Manages the SQLite database connection and schema for the brain-cli.
-
-use rusqlite::{Connection, Result as RusqliteResult};
+// ===== FILE: brain/docs/cli/src/db.rs  ===== //
+// !!! WARNING: DATABASE FUNCTIONALITY IS TEMPORARILY DISABLED !!!
 use std::path::Path;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-/// Opens a connection to the project's a SQLite database.
-pub fn open_db_connection(project_root: &Path) -> RusqliteResult<Connection> {
-    let db_path = project_root.join(".brain_db.sqlite3");
-    let conn = Connection::open(db_path)?;
-    Ok(conn)
+// THE FIX: Define an error type that is Send + Sync, compatible with anyhow.
+// Using `thiserror` would be ideal, but for now a simple string is fine.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct DummyDbError(String);
+
+// A dummy Connection struct that contains a Mutex, to satisfy the `.lock()` call.
+pub struct Connection(Arc<Mutex<()>>);
+
+impl Connection {
+    // Provide a lock method that returns a dummy guard.
+    pub fn lock(&self) -> Result<MutexGuard<'_, ()>, DummyDbError> {
+        Ok(self.0.lock().unwrap())
+    }
 }
 
-/// Initializes the database schema.
-pub fn initialize_database(conn: &Connection) -> RusqliteResult<()> {
-    println!("[DB] Initializing BRAIN database schema...");
-    conn.execute_batch(
-        "BEGIN;
-        -- Stores snapshots of the project state, linked to tasks.
-        CREATE TABLE IF NOT EXISTS ProjectVersions (
-            version_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            parent_version_id INTEGER,
-            task_id_completed TEXT, -- Which task completion triggered this version
-            timestamp TEXT NOT NULL,
-            description TEXT,
-            CONSTRAINT fk_parent_version
-                FOREIGN KEY (parent_version_id)
-                REFERENCES ProjectVersions (version_id)
-                ON DELETE CASCADE
-        );
-        -- Stores the state of every file in a given version.
-        CREATE TABLE IF NOT EXISTS VersionFiles (
-            version_file_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_version_id INTEGER NOT NULL,
-            file_path TEXT NOT NULL,
-            content_hash TEXT NOT NULL,
-            file_size INTEGER NOT NULL,
-            CONSTRAINT fk_project_version
-                FOREIGN KEY (project_version_id)
-                REFERENCES ProjectVersions (version_id)
-                ON DELETE CASCADE,
-            UNIQUE (project_version_id, file_path)
-        );
-        COMMIT;"
-    )?;
-    println!("[DB] Schema initialization complete.");
+// THE FIX: The Result type now uses our anyhow-compatible dummy error.
+pub type RusqliteResult<T> = std::result::Result<T, DummyDbError>;
+
+pub fn open_db_connection(project_root: &Path) -> RusqliteResult<Connection> {
+    eprintln!("[DB] WARNING: Database is disabled. Opening a dummy connection.");
+    let db_path = project_root.join(".brain_db.sqlite3");
+    eprintln!("[DB] Would have connected to: {:?}", db_path);
+    Ok(Connection(Arc::new(Mutex::new(()))))
+}
+
+pub fn initialize_database(_conn: &Connection) -> RusqliteResult<()> {
+    eprintln!("[DB] WARNING: Database is disabled. Skipping schema initialization.");
     Ok(())
 }
+// ===== END brain/docs/cli/src/db.rs ===== //

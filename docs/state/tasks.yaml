@@ -4,6 +4,9 @@ version: 4
 #  ║  Scope: from today’s MVP  ➜  enterprise-grade, audit-ready CLI       ║
 #  ╚═══════════════════════════════════════════════════════════════════════╝
 
+# THE FIX: ALL acceptanceCriteria have been converted from flow-style {...}
+# to the more robust block-style YAML to prevent all parsing errors.
+
 # ──────────────────────────────────────────────────────────────────────────
 #  0 · PREP & HOUSEKEEPING
 # ──────────────────────────────────────────────────────────────────────────
@@ -15,7 +18,9 @@ tasks:
   needs: []
   contextQuery: {prompt: "git mv docs/prompts/* docs/legacy_prompts/", tokenBudget: 1200}
   acceptanceCriteria:
-  - {description: ".brainignore exists", type: file_exists, file: .brainignore}
+    - description: ".brainignore exists"
+      type: "file_exists"
+      file: ".brainignore"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  1 · STORAGE & INTEGRITY
@@ -27,7 +32,11 @@ tasks:
   needs: [PREP-01-repo-clean]
   contextQuery: {prompt: "Implement SQLCipher + Argon2id", tokenBudget: 4000}
   acceptanceCriteria:
-  - {description: "PRAGMA key", type: text_check, file: docs/scripts/src/db.rs, assertion: contains_string, value: PRAGMA key}
+    - description: "PRAGMA key"
+      type: "text_check"
+      file: "docs/scripts/src/db.rs"
+      assertion: "contains_string"
+      value: "PRAGMA key"
 
 - id: STOR-02-wal-checksum
   label: "tasks.yaml: tempfile+rename + SHA-256 manifest"
@@ -36,7 +45,9 @@ tasks:
   needs: [STOR-01-sqlcipher]
   contextQuery: {prompt: "tempfile write then rename; update manifest.json", tokenBudget: 2500}
   acceptanceCriteria:
-  - {description: "manifest.json updated", type: file_exists, file: .brain/manifest.json}
+    - description: "manifest.json updated"
+      type: "file_exists"
+      file: ".brain/manifest.json"
 
 - id: STOR-03-audit-hashchain
   label: "AuditLogger: hash-chained JSONL (Law L2)"
@@ -45,7 +56,11 @@ tasks:
   needs: [STOR-02-wal-checksum]
   contextQuery: {prompt: "audit_logger.rs hash chain", tokenBudget: 3500}
   acceptanceCriteria:
-  - {description: "prev_hash", type: text_check, file: docs/scripts/src/audit_logger.rs, assertion: contains_string, value: prev_hash}
+    - description: "prev_hash"
+      type: "text_check"
+      file: "docs/scripts/src/audit_logger.rs"
+      assertion: "contains_string"
+      value: "prev_hash"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  2 · OBSERVABILITY & COST
@@ -57,7 +72,11 @@ tasks:
   needs: [STOR-03-audit-hashchain]
   contextQuery: {prompt: "insert span!() in architect.rs coder.rs", tokenBudget: 4000}
   acceptanceCriteria:
-  - {description: "brain_cli.command span", type: text_check, file: docs/scripts/src/main.rs, assertion: contains_string, value: span!(}
+    - description: "brain_cli.command span"
+      type: "text_check"
+      file: "docs/scripts/src/main.rs"
+      assertion: "contains_string"
+      value: "span!("
 
 - id: OBS-02-otel-exporter
   label: "OTel: OTLP exporter + Jaeger docker compose"
@@ -66,7 +85,9 @@ tasks:
   needs: [OBS-01-otel-core]
   contextQuery: {prompt: "configure OTLP grpc exporter", tokenBudget: 2500}
   acceptanceCriteria:
-  - {description: "docker-compose-jaeger.yml exists", type: file_exists, file: docs/docker-compose-jaeger.yml}
+    - description: "docker-compose-jaeger.yml exists"
+      type: "file_exists"
+      file: "docs/docker-compose-jaeger.yml"
 
 - id: COST-01-resource-governor
   label: "Cost: ResourceGovernor + --max-usd"
@@ -75,7 +96,9 @@ tasks:
   needs: [OBS-02-otel-exporter]
   contextQuery: {prompt: "resource_governor.rs approve(cost)", tokenBudget: 3000}
   acceptanceCriteria:
-  - {description: "cost_ledger.csv", type: file_exists, file: .brain/cost_ledger.csv}
+    - description: "cost_ledger.csv"
+      type: "file_exists"
+      file: ".brain/cost_ledger.csv"
 
 - id: COST-02-weekly-regression
   label: "CI: GitHub Action weekly cost regression"
@@ -84,7 +107,9 @@ tasks:
   needs: [COST-01-resource-governor]
   contextQuery: {prompt: "create .github/workflows/cost_reg.yml", tokenBudget: 2200}
   acceptanceCriteria:
-  - {description: "cost_reg.yml exists", type: file_exists, file: .github/workflows/cost_reg.yml}
+    - description: "cost_reg.yml exists"
+      type: "file_exists"
+      file: ".github/workflows/cost_reg.yml"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  3 · SECURITY
@@ -96,7 +121,11 @@ tasks:
   needs: [COST-01-resource-governor]
   contextQuery: {prompt: "sandbox.rs with Wasmtime config", tokenBudget: 4500}
   acceptanceCriteria:
-  - {description: "wasmtime::Engine", type: text_check, file: docs/scripts/src/sandbox.rs, assertion: contains_string, value: wasmtime::Engine}
+    - description: "wasmtime::Engine"
+      type: "text_check"
+      file: "docs/scripts/src/sandbox.rs"
+      assertion: "contains_string"
+      value: "wasmtime::Engine"
 
 - id: SEC-02-api-key-vault
   label: "SecureVault: cross-platform OS keychain wrapper"
@@ -105,7 +134,11 @@ tasks:
   needs: [SEC-01-sandbox]
   contextQuery: {prompt: "keyring crate integration", tokenBudget: 3500}
   acceptanceCriteria:
-  - {description: "keyring::Entry", type: text_check, file: docs/scripts/src/secure_vault.rs, assertion: contains_string, value: keyring::Entry}
+    - description: "keyring::Entry"
+      type: "text_check"
+      file: "docs/scripts/src/secure_vault.rs"
+      assertion: "contains_string"
+      value: "keyring::Entry"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  4 · QUALITY & REFLECTION
@@ -117,7 +150,11 @@ tasks:
   needs: [SEC-01-sandbox]
   contextQuery: {prompt: "critique_prompt + refiner_prompt", tokenBudget: 4000}
   acceptanceCriteria:
-  - {description: "fn self_refine", type: text_check, file: docs/scripts/src/self_refine.rs, assertion: contains_string, value: self_refine}
+    - description: "fn self_refine"
+      type: "text_check"
+      file: "docs/scripts/src/self_refine.rs"
+      assertion: "contains_string"
+      value: "self_refine"
 
 - id: QUAL-02-thinker-talker
   label: "Thinker-Talker pattern for tool plans"
@@ -126,7 +163,11 @@ tasks:
   needs: [QUAL-01-self-refine]
   contextQuery: {prompt: "implement thinker_talker.rs", tokenBudget: 3000}
   acceptanceCriteria:
-  - {description: "ThinkerTalker struct", type: text_check, file: docs/scripts/src/thinker_talker.rs, assertion: contains_string, value: struct ThinkerTalker }
+    - description: "ThinkerTalker struct"
+      type: "text_check"
+      file: "docs/scripts/src/thinker_talker.rs"
+      assertion: "contains_string"
+      value: "struct ThinkerTalker"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  5 · CONTEXT ENGINE
@@ -138,7 +179,11 @@ tasks:
   needs: [QUAL-01-self-refine]
   contextQuery: {prompt: "use tree_sitter crates", tokenBudget: 4500}
   acceptanceCriteria:
-  - {description: "extern crate tree_sitter", type: text_check, file: docs/scripts/src/sketch.rs, assertion: contains_string, value: tree_sitter}
+    - description: "extern crate tree_sitter"
+      type: "text_check"
+      file: "docs/scripts/src/sketch.rs"
+      assertion: "contains_string"
+      value: "tree_sitter"
 
 - id: CTX-02-embedding-fallback
   label: "Fallback: cheap embeddings search when Tree-sitter over budget"
@@ -147,7 +192,11 @@ tasks:
   needs: [CTX-01-tree-sitter]
   contextQuery: {prompt: "embedding_store.rs", tokenBudget: 4000}
   acceptanceCriteria:
-  - {description: "sentence_transformers", type: text_check, file: docs/scripts/Cargo.toml, assertion: contains_string, value: sentence-transformers}
+    - description: "sentence_transformers"
+      type: "text_check"
+      file: "docs/scripts/Cargo.toml"
+      assertion: "contains_string"
+      value: "sentence-transformers"
 
 - id: CTX-03-sketch-invoke
   label: "brain sketch: expose sketch.rs via CLI"
@@ -158,9 +207,12 @@ tasks:
     prompt: "add cmd brain sketch <task_id> that returns context JSON"
     tokenBudget: 2500
   acceptanceCriteria:
-  - {description: "fn build_context_bundle(", type: text_check,
-     file: docs/scripts/src/sketch.rs, assertion: contains_string,
-     value: build_context_bundle}
+    - description: "fn build_context_bundle("
+      type: "text_check"
+      file: "docs/scripts/src/sketch.rs"
+      assertion: "contains_string"
+      value: "build_context_bundle"
+
 # ──────────────────────────────────────────────────────────────────────────
 #  6 · LDST & REFLECTION HEALTH
 # ──────────────────────────────────────────────────────────────────────────
@@ -171,7 +223,9 @@ tasks:
   needs: [QUAL-01-self-refine]
   contextQuery: {prompt: "ldst_runner.rs", tokenBudget: 4500}
   acceptanceCriteria:
-  - {description: "ldst_gap_log.md exists", type: file_exists, file: docs/reflection_qa/ldst_gap_log.md}
+    - description: "ldst_gap_log.md exists"
+      type: "file_exists"
+      file: "docs/reflection_qa/ldst_gap_log.md"
 
 - id: REFL-02-ldst-calibrate
   label: "CLI: brain ldst-calibrate"
@@ -180,7 +234,11 @@ tasks:
   needs: [REFL-01-ldst-runner]
   contextQuery: {prompt: "ldst_calibrate.rs", tokenBudget: 3500}
   acceptanceCriteria:
-  - {description: "CALIBRATION PASS", type: text_check, file: docs/scripts/src/ldst_calibrate.rs, assertion: contains_string, value: CALIBRATION PASS}
+    - description: "CALIBRATION PASS"
+      type: "text_check"
+      file: "docs/scripts/src/ldst_calibrate.rs"
+      assertion: "contains_string"
+      value: "CALIBRATION PASS"
 
 - id: REFL-03-decay-monitor
   label: "tool: reflection_decay_monitor"
@@ -189,7 +247,9 @@ tasks:
   needs: [QUAL-01-self-refine]
   contextQuery: {prompt: "decay_monitor.rs", tokenBudget: 4000}
   acceptanceCriteria:
-  - {description: "decay_report", type: file_exists, file: docs/reflection_qa/decay_report_latest.md}
+    - description: "decay_report"
+      type: "file_exists"
+      file: "docs/reflection_qa/decay_report_latest.md"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  7 · CLI & UX SAFETY
@@ -201,7 +261,11 @@ tasks:
   needs: [STOR-03-audit-hashchain]
   contextQuery: {prompt: "shutdown_manager.rs", tokenBudget: 3000}
   acceptanceCriteria:
-  - {description: "CtrlC handler", type: text_check, file: docs/scripts/src/shutdown_manager.rs, assertion: contains_string, value: ctrlc::set_handler}
+    - description: "CtrlC handler"
+      type: "text_check"
+      file: "docs/scripts/src/shutdown_manager.rs"
+      assertion: "contains_string"
+      value: "ctrlc::set_handler"
 
 - id: UX-02-dev-unsafe-flag
   label: "Flag: --dev-log-unsafe-io persistent banner"
@@ -210,7 +274,11 @@ tasks:
   needs: [UX-01-graceful-shutdown]
   contextQuery: {prompt: "implement flag parse + banner", tokenBudget: 2500}
   acceptanceCriteria:
-  - {description: "red\u001b[31m", type: text_check, file: docs/scripts/src/main.rs, assertion: contains_string, value: red banner}
+    - description: "red\u001b[31m"
+      type: "text_check"
+      file: "docs/scripts/src/main.rs"
+      assertion: "contains_string"
+      value: "red banner"
 
 - id: UX-03-chat-task
   label: "CLI: brain chat-task <ID> (UPE call + temp branch)"
@@ -221,8 +289,9 @@ tasks:
     prompt: "implement chat_task.rs; use reqwest to call OpenAI; save output"
     tokenBudget: 4500
   acceptanceCriteria:
-  - {description: "chat_task.rs exists", type: file_exists,
-     file: docs/scripts/src/chat_task.rs}
+    - description: "chat_task.rs exists"
+      type: "file_exists"
+      file: "docs/scripts/src/chat_task.rs"
 
 - id: UX-04-wire-brain-next
   label: "brain next: invoke chat-task then verify"
@@ -234,9 +303,12 @@ tasks:
     prompt: "update orchestrator.rs run_next_task() sequence"
     tokenBudget: 3000
   acceptanceCriteria:
-  - {description: "run_next_task(", type: text_check,
-     file: docs/scripts/src/orchestrator.rs, assertion: contains_string,
-     value: run_next_task}
+    - description: "run_next_task("
+      type: "text_check"
+      file: "docs/scripts/src/orchestrator.rs"
+      assertion: "contains_string"
+      value: "run_next_task"
+
 # ──────────────────────────────────────────────────────────────────────────
 #  8 · CI / RELEASE & DOCS
 # ──────────────────────────────────────────────────────────────────────────
@@ -247,7 +319,11 @@ tasks:
   needs: [OBS-02-otel-exporter, COST-02-weekly-regression, QUAL-01-self-refine]
   contextQuery: {prompt: "ci.yml", tokenBudget: 2800}
   acceptanceCriteria:
-  - {description: "uses: actions-rs/toolchain", type: text_check, file: .github/workflows/ci.yml, assertion: contains_string, value: actions-rs}
+    - description: "uses: actions-rs/toolchain"
+      type: "text_check"
+      file: ".github/workflows/ci.yml"
+      assertion: "contains_string"
+      value: "actions-rs"
 
 - id: REL-01-crates-setup
   label: "Release: prepare publishing to crates.io"
@@ -256,7 +332,11 @@ tasks:
   needs: [CI-01-github-workflow]
   contextQuery: {prompt: "update Cargo.toml package metadata", tokenBudget: 1800}
   acceptanceCriteria:
-  - {description: "license = \"MIT\"", type: text_check, file: docs/scripts/Cargo.toml, assertion: contains_string, value: license = "MIT"}
+    - description: "license = \"MIT\""
+      type: "text_check"
+      file: "docs/scripts/Cargo.toml"
+      assertion: "contains_string"
+      value: "license = \"MIT\""
 
 - id: REL-02-homebrew-tap
   label: "Release: Homebrew formula"
@@ -265,7 +345,11 @@ tasks:
   needs: [REL-01-crates-setup]
   contextQuery: {prompt: "create brew formula in scripts/homebrew.rb", tokenBudget: 1800}
   acceptanceCriteria:
-  - {description: "class BrainCli < Formula", type: text_check, file: scripts/homebrew.rb, assertion: contains_string, value: class BrainCli }
+    - description: "class BrainCli < Formula"
+      type: "text_check"
+      file: "scripts/homebrew.rb"
+      assertion: "contains_string"
+      value: "class BrainCli"
 
 # ──────────────────────────────────────────────────────────────────────────
 #  9 · DOCUMENTATION FINAL PASS
@@ -282,7 +366,10 @@ tasks:
       troubleshooting FAQ.
     tokenBudget: 8000
   acceptanceCriteria:
-  - {description: "user_guide.md exists", type: file_exists, file: docs/user_guide.md}
+    - description: "user_guide.md exists"
+      type: "file_exists"
+      file: "docs/user_guide.md"
+
 # ──────────────────────────────────────────────────────────────────────────
 # 10 · ONBOARDING & IN-APP GUIDANCE
 # ──────────────────────────────────────────────────────────────────────────
@@ -291,16 +378,18 @@ tasks:
   goal: Detect fresh install (.brain missing) → print 6-line ASCII banner
         + “Run: brain plan 'Your idea' → brain next” + link to user guide.
   status: todo
-  needs: [UX-02-dev-unsafe-flag]          # ensure coloured output exists
+  needs: [UX-02-dev-unsafe-flag]
   contextQuery:
     prompt: >
       Add first_run_check() in main.rs.
       If ~/.brain or .brain/ absent, show banner with next-step commands.
     tokenBudget: 1200
   acceptanceCriteria:
-  - {description: "first_run_check(", type: text_check,
-     file: docs/scripts/src/main.rs, assertion: contains_string,
-     value: first_run_check}
+    - description: "first_run_check("
+      type: "text_check"
+      file: "docs/scripts/src/main.rs"
+      assertion: "contains_string"
+      value: "first_run_check"
 
 - id: ONB-02-interactive-tutorial
   label: "CLI: brain tutorial (guided sandbox project)"
@@ -315,8 +404,9 @@ tasks:
       continue.
     tokenBudget: 3000
   acceptanceCriteria:
-  - {description: "tutorial.rs exists", type: file_exists,
-     file: docs/scripts/src/tutorial.rs}
+    - description: "tutorial.rs exists"
+      type: "file_exists"
+      file: "docs/scripts/src/tutorial.rs"
 
 - id: ONB-03-help-command
   label: "CLI: brain help <topic>"
@@ -330,8 +420,9 @@ tasks:
       requested topic in terminal pager.
     tokenBudget: 2000
   acceptanceCriteria:
-  - {description: "help.rs exists", type: file_exists,
-     file: docs/scripts/src/help.rs}
+    - description: "help.rs exists"
+      type: "file_exists"
+      file: "docs/scripts/src/help.rs"
 
 - id: ONB-04-ldst-reminder
   label: "CLI: automatic LDST reminder"
@@ -345,8 +436,8 @@ tasks:
       or YAML header date.
     tokenBudget: 1200
   acceptanceCriteria:
-  - {description: "last_ldst_check(", type: text_check,
-     file: docs/scripts/src/main.rs, assertion: contains_string,
-     value: last_ldst_check}
-
-# End of tasks
+    - description: "last_ldst_check("
+      type: "text_check"
+      file: "docs/scripts/src/main.rs"
+      assertion: "contains_string"
+      value: "last_ldst_check"

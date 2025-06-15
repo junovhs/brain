@@ -1,26 +1,24 @@
-# Corrected FILE: docs/cli/Cargo.toml
-
 [package]
-name = "brain-cli"
-version = "0.2.0"
+name = "brain_cli"
+version = "0.1.0"
 edition = "2021"
+authors = ["BRAIN Protocol Team <dev@brainprotocol.ai>"]
+description = "Command Line Interface for the BRAIN Protocol"
+license = "MIT"
+repository = "https://github.com/your-repo/brain"
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
-serde_json = "1.0"
-clap = { version = "4.4", features = ["derive"] }
-anyhow = "1.0"
-rustyline = "14.0"
-shlex = "1.1"
+anyhow = "1.0.82"
+clap = { version = "4.5.4", features = ["derive"] }
 colored = "2.1.0"
-
-# --- Final Integration Dependencies ---
-tokio = { version = "1.0", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
-sha2 = "0.10"
-walkdir = "2" # Adding this now as it's needed for FINAL-3
-
-# --- Cannibalized from diranalyze ---
-rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.38", features = ["serde"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_yaml = "0.9.34"
+serde_json = "1.0.116"
+rustyline = "14.0.0"
+shlex = "1.3.0"
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+walkdir = "2.5.0"
+sha2 = "0.10.8"
+# THE FIX: Add thiserror for our dummy db error type
+thiserror = "1.0.58"

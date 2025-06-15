@@ -1,0 +1,13 @@
+// ===== FILE: brain/.brainignore  ===== //
+# Patterns for brain-cli to ignore.
+# See task PREP-01-repo-clean.
+
+# Build artifacts
+target/
+
+# Temporary files
+*.tmp
+
+# SQLite backup files
+*.sqlite3.bak
+// ===== END brain/.brainignore ===== //

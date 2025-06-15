@@ -1,6 +1,11 @@
-// FILE: docs/scripts/src/model.rs
-
+// ===== FILE: brain/docs/cli/src/model.rs  ===== //
 use serde::{Deserialize, Serialize};
+
+// THE FIX: Added Manifest struct for STOR-02
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Manifest {
+    pub tasks_yaml_sha256: String,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct TaskGraph {
@@ -9,7 +14,7 @@ pub struct TaskGraph {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")] // This correctly handles all camelCase fields.
+#[serde(rename_all = "camelCase")]
 pub struct Task {
     pub id: String,
     pub label: String,
@@ -18,9 +23,9 @@ pub struct Task {
     pub status: String,
     pub needs: Vec<String>,
     #[serde(default)]
-    pub context_files: Option<Vec<String>>, // Deprecated, but kept for backward compatibility.
+    pub context_files: Option<Vec<String>>,
     #[serde(default)]
-    pub context_query: Option<ContextQuery>, // The new way to specify context.
+    pub context_query: Option<ContextQuery>,
     #[serde(default)]
     pub acceptance_criteria: Option<Vec<AcceptanceCriterion>>,
     #[serde(default)]
@@ -45,3 +50,4 @@ pub struct AcceptanceCriterion {
     #[serde(default)]
     pub value: Option<String>,
 }
+// ===== END brain/docs/cli/src/model.rs ===== //

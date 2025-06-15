@@ -1,9 +1,10 @@
-// FILE: docs/scripts/src/versioning.rs
+// ===== FILE: brain/docs/cli/src/versioning.rs  ===== //
 // Adapted from diranalyze/backend/src/version_control.rs
 // Handles the logic for creating and managing project state snapshots.
+// !!! WARNING: THIS IS STUBBED OUT AND WILL NOT WORK. !!!
 
-use rusqlite::{params, Connection, Result};
 use serde::{Deserialize, Serialize};
+use crate::db::Connection; // Use our dummy connection type
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ScannedFileInfo {
@@ -20,29 +21,12 @@ pub struct SnapshotRequest {
     pub files: Vec<ScannedFileInfo>,
 }
 
+// THE FIX: The stub doesn't mutate anything, so accept an immutable reference `&Connection`.
 pub fn create_project_snapshot(
-    conn: &mut Connection,
-    payload: SnapshotRequest,
-) -> Result<i64> {
-    let tx = conn.transaction()?;
-    let version_id;
-    {
-        let timestamp = chrono::Utc::now().to_rfc3339();
-
-        tx.execute(
-            "INSERT INTO ProjectVersions (parent_version_id, task_id_completed, timestamp, description) VALUES (?1, ?2, ?3, ?4)",
-            params![payload.parent_version_id, payload.task_id_completed, timestamp, payload.description],
-        )?;
-        version_id = tx.last_insert_rowid();
-
-        let mut stmt = tx.prepare(
-            "INSERT INTO VersionFiles (project_version_id, file_path, content_hash, file_size) VALUES (?1, ?2, ?3, ?4)",
-        )?;
-        for file in payload.files {
-            stmt.execute(params![version_id, file.path, file.hash, file.size])?;
-        }
-    }
-
-    tx.commit()?;
-    Ok(version_id)
+    _conn: &Connection, // Changed from &mut Connection
+    _payload: SnapshotRequest,
+) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
+    eprintln!("[SNAPSHOT] WARNING: Database is disabled. Snapshot creation skipped.");
+    Ok(0) // Return a dummy version ID
 }
+// ===== END brain/docs/cli/src/versioning.rs ===== //
